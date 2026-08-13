@@ -202,7 +202,7 @@ def parse_inversion_flags(indatafile):
     return iph, igv, ihv, irf
 
 
-def parse_plot_type(connectorfile, line_number=8):
+def parse_plot_type(connectorfile, line_number=9):
     if not os.path.isfile(connectorfile):
         die("Connector file does not exist: {}".format(connectorfile))
 
@@ -644,7 +644,10 @@ def main():
     # Starting model response
     # -------------------------------------------------------------------------
     fcheckper, fcheckRC = np.loadtxt(paths["startfileph"], usecols=(0, 1), unpack=True)
-    fcheckperhv, fcheckHV = np.loadtxt(paths["startfilehv"], usecols=(0, 1), unpack=True)
+    if ihv == 1:
+        fcheckperhv, fcheckHV = np.loadtxt(paths["startfilehv"], usecols=(0, 1), unpack=True)
+    else:
+        fcheckperhv, fcheckHV = np.array([]), np.array([])
     timerf0, rf0 = np.genfromtxt(paths["startfilerf"], usecols=(0, 1), unpack=True)
 
     # -------------------------------------------------------------------------
@@ -700,9 +703,12 @@ def main():
     mincper, mincpf, mincpo, mincpounc = np.loadtxt(
         paths["minmisfit_p_disp"], usecols=(0, 1, 2, 3), unpack=True
     )
-    minceper, minchvf, minchvo, minchvounc = np.loadtxt(
-        paths["minmisfit_e_disp"], usecols=(0, 1, 2, 3), unpack=True
-    )
+    if ihv == 1:
+        minceper, minchvf, minchvo, minchvounc = np.loadtxt(
+            paths["minmisfit_e_disp"], usecols=(0, 1, 2, 3), unpack=True
+        )
+    else:
+        minceper = minchvf = minchvo = minchvounc = np.array([])
     mincrftime, mincrfval, mincrotime, mcinrfo, mincrfounc = np.loadtxt(
         paths["minmisfit_rf"], usecols=(0, 1, 2, 3, 4), unpack=True
     )

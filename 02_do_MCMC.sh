@@ -163,35 +163,26 @@ echo "-----------------------------------------------"
 rm -f $output_file_2
 # >>>>>>>>>>>>>>>
 echo "time $code_dir/do_MC_Para_Post_process_v3 $sfile" > 02_run_MCMC_post_process.sh
-# post process finish!!! ready to plot!
-if ! test -f $output_file_2; then
-  # If the file exist!
-    echo $output_file_2 ' does not exist!'
-    sh 02_run_MCMC_post_process.sh > "$output_file_2"
-    echo "Run the do_MC_Para_post_process_v3 for the first time!" >> "00_run_"$sta"_report.txt"
-else
-    # If the output file not exist then run the 1st time
-    # Read the last line of the input file
-    string_2=$(tail -n 1 "$output_file_2")
-    case "$string_2" in
-      *"$check_point_2"*)
-        echo "String match!"
-        echo "String match!" >> "00_run_"$sta"_report.txt"
-        cp $output_file_2 ${sta}/
-        ;;
-      *)
-        echo "Something was wrong!"
-        echo "Something was wrong!" >> "00_run_"$sta"_report.txt"
-        ;;
-    esac
-fi
+# Run the post-process.
+# NOTE: this binary returns exit code 1 on SUCCESS (codebase convention), so
+# `time` prints "Command exited with non-zero status 1" even on success.
+# We therefore DO NOT trust the exit code -- we check the finish string instead.
+echo " > $output_file_2 does not exist! Running post-process for $sta ..."
+sh 02_run_MCMC_post_process.sh > "$output_file_2"
+echo "Run the do_MC_Para_post_process_v3 for the first time!" >> "00_run_"$sta"_report.txt"
 
-if test -f $output_file_2; then
-  cp $output_file_2 ${sta}/
+# >>>> FINISH CONDITION check <<<<
+# Search the WHOLE output for the checkpoint string (do NOT use tail -n 1: the
+# binary prints "post process finish!!! ready to plot!" followed by a blank line).
+if test -f "$output_file_2" && grep -q "$check_point_2" "$output_file_2"; then
+    echo " >>> post-process FINISHED ok (checkpoint matched) for $sta"
+    echo "post process finish checkpoint matched!" >> "00_run_"$sta"_report.txt"
+    cp $output_file_2 ${sta}/
 else
-  echo "No such file or directory after run the MCMC_para_post_process? $output_file_2"
-  echo "No such file or directory after run the MCMC_para_post_process? $output_file_2" >> "00_run_"$sta"_report.txt"
-  continue
+    echo " >>> post-process did NOT reach the finish checkpoint! skip plotting $sta"
+    echo "post process finish checkpoint NOT found! $output_file_2" >> "00_run_"$sta"_report.txt"
+    cp $output_file_2 ${sta}/ 2>/dev/null
+    continue
 fi
 
 # echo  `ls $sta | wc -l`

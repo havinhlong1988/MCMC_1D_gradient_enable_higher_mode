@@ -10,7 +10,7 @@ gradl
 tt 12
 jt 2000
 outdir 01390 01390 -2
-n_thread 1
+n_thread 5
 indata /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/data/01390_data/in.data_01390
 selstyle -1
 mc_range 10.00

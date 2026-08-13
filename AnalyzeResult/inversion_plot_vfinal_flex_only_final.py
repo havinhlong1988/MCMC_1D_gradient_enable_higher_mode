@@ -81,7 +81,7 @@ print("making figure for station: ",sta)
 # Now we can check plot_type in data/{sta}_data/in.connector
 with open(connectorfile, 'r') as file:
     for i, line in enumerate(file, start=1):
-        if i == 7:
+        if i == 9:
             try:
                 # Split the line into individual values and convert them to integers
                 plot_type = [int(value) for value in line.strip().split()]
