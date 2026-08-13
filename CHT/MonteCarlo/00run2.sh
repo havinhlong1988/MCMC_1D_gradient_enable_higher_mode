@@ -1,0 +1,1 @@
+time /home/longhv/Research/Projects/MCMC_CHT_layercake_20260311/test_cases/test_moho_60_mantle_equal_last_crust/Codes/MCMC_flex/do_MC_Para_Post_process_v3 /home/longhv/Research/Projects/MCMC_CHT_layercake_20260311/test_cases/test_moho_60_mantle_equal_last_crust/CHT/data/00990_data/00990.control

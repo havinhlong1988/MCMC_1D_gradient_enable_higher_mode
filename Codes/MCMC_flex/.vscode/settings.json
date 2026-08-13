@@ -1,0 +1,23 @@
+{
+    "files.associations": {
+        "do_MC_Para.C": "cpp",
+        "CALpara.C": "cpp",
+        "MC.C": "cpp",
+        "CALgroup.C": "cpp",
+        "iosfwd": "cpp",
+        "fstream": "cpp",
+        "CALmodel.C": "cpp",
+        "do_MC_Para_Post_process_v3.C": "cpp",
+        "deque": "cpp",
+        "string": "cpp",
+        "vector": "cpp",
+        "array": "cpp",
+        "string_view": "cpp",
+        "initializer_list": "cpp",
+        "read_in.C": "cpp",
+        "random": "cpp",
+        "limits": "cpp",
+        "algorithm": "cpp",
+        "cmath": "cpp"
+    }
+}

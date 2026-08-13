@@ -1,0 +1,19 @@
+model /home/longhv/Research/Projects/MCMC_CHT_layercake_20260311/P2/CHT/data/00960_data/mod.00960
+para /home/longhv/Research/Projects/MCMC_CHT_layercake_20260311/P2/CHT/data/00960_data/in.para_00960
+disp 1 2 1 /home/longhv/Research/Projects/MCMC_CHT_layercake_20260311/P2/CHT/data/00960_data/00960.ph 3 /home/longhv/Research/Projects/MCMC_CHT_layercake_20260311/P2/CHT/MonteCarlo/indata/in.hv
+rf /home/longhv/Research/Projects/MCMC_CHT_layercake_20260311/P2/CHT/MonteCarlo/indata/in.rf 2.5
+Qmodel /home/longhv/Research/Projects/MCMC_CHT_layercake_20260311/P2/CHT/MonteCarlo/indata/Qmodel.dat
+p 1
+mono 1
+monol 2
+gradl
+tt 12
+jt 10000
+outdir 00960 00960 -2
+n_thread 30
+indata /home/longhv/Research/Projects/MCMC_CHT_layercake_20260311/P2/CHT/data/00960_data/in.data_00960
+mc_range 5.0
+dstep 0.1
+plottype 1
+invtype 1.0
+end

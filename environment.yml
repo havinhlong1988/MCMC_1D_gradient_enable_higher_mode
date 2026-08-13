@@ -1,0 +1,21 @@
+# Conda environment for the MCMC-CHT inversion (Python setup + plotting).
+# Reproduces the documented, tested stack. Portable (no build strings pinned).
+#
+#   conda env create -f environment.yml
+#   conda activate MCMC
+#
+# NOTE: scripts call `python` (not `python3`), so this env must be ACTIVE when
+# running 01_*.sh / 02_*.sh etc.
+name: MCMC
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.7.6
+  - numpy=1.18.1
+  - pandas=1.0.1
+  - matplotlib=3.4.3
+  # Fortran compiler for the surface-wave (DISP2) and RF forward objects.
+  # On this Linux box gfortran comes from conda-forge (v15); the C++ is built
+  # with the system g++. See INSTALL.md for the libgfortran linking note.
+  - gfortran

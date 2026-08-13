@@ -1,0 +1,149 @@
+================================================================================
+ PORTING CHECKLIST — enable FUNDAMENTAL + 1st HIGHER MODE in H14 version
+================================================================================
+ Generated: 2026-08-13
+ Goal      : make our H14 monotonic_vpvs version forward + fit fundamental AND
+             1st higher-mode Rayleigh phase velocity, mirroring the colleague's
+             version:  ~/Research/MCMC_CHT/MCMC_joint_inversion_CNan/
+                       Codes_ori/MCMC_PhOnly_Higher_Mode_ori/
+ Our code  : ~/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/
+ See also  : CHECKPOINT.md (analysis state), INSTALL.md (env/build)
+================================================================================
+
+Reference: how CNan enables it (5 coordinated code changes + data + plot).
+Each item below = FILE + WHAT TO CHANGE. "[ ]" = not done yet.
+
+--------------------------------------------------------------------------------
+A. FORWARD ENGINE  (Fortran, Codes/MCMC_flex/DISP2/)
+--------------------------------------------------------------------------------
+[ ] DISP2/init.f
+      line 58:  mode=1   ->   mode=2          (compute 2 modes)
+
+[ ] DISP2/fast_surf.f
+      - extend SUBROUTINE FAST_SURF signature with 6 extra output args:
+          ... uR1,uL1,cR1,cL1,rR1,rL1
+      - declare them:  real*4 uL1(nper),uR1(nper),cL1(nper),cR1(nper),
+                              rR1(nper),rL1(nper)
+      - in the output loop add:
+          cR1(i)=cR(i,2)   uR1(i)=uR(i,2)   rR1(i)=rR(i,2)   (Rayleigh)
+          cL1(i)=cL(i,2)   uL1(i)=uL(i,2)   rL1(i)=rL(i,2)   (Love, if used)
+      NOTE: arrays cR(200,2)/uR/rR already hold 2 modes -> no resize needed
+            for a single higher mode. (Only enlarge to (200,nmod) for >2 modes.)
+
+--------------------------------------------------------------------------------
+B. FORWARD WRAPPER  (C++, Codes/MCMC_flex/CALforward.C)
+--------------------------------------------------------------------------------
+[ ] CALforward.C
+      - update extern prototype (line ~12) of fast_surf_ with the 6 new args.
+      - allocate arrays cR1,uR1,rR1 (and cL1,uL1,rL1) like the *0 arrays.
+      - build the period list from BOTH pper AND hpper before the call.
+      - update the fast_surf_(...) call (line ~116) to pass the 6 new arrays.
+      - after the call: store fundamental cR0 -> disp.pvel  (already done),
+        and higher-mode cR1 -> disp.hpvel  (new loop over nhpper/hpper).
+
+--------------------------------------------------------------------------------
+C. DATA STRUCTURE  (Codes/MCMC_flex/INITstructure.h)
+--------------------------------------------------------------------------------
+[ ] INITstructure.h  (disp struct)  -- currently has ZERO hp* fields
+      add, parallel to fundamental (npper/pper/pvelo/pvel/unpvelo):
+          int nhpper;
+          vector<double> hpper, hpvelo, hpvel, unhpvelo;
+          int   fhphase;          // flag: higher-mode phase present
+          double phmisfit, hpL;   // higher-mode misfit / likelihood
+
+--------------------------------------------------------------------------------
+D. DATA LOADING + MISFIT  (C++, Codes/MCMC_flex/CALmodel.C)
+--------------------------------------------------------------------------------
+[ ] CALmodel.C : readdisp1()
+      add a tflag route for higher-mode phase ->
+          hpper=cv1; hpvelo=cv2; unhpvelo=cv3; nhpper=i; fhphase=1;
+      (SEE FLAG-NUMBERING GOTCHA BELOW.)
+
+[ ] CALmodel.C : compute_misfit() / get_misfit1()
+      add higher-mode residual:
+          tempv1hmode = SUM( ((hpvelo[i]-hpvel[i])/unhpvelo[i])^2 )
+          phmisfit    = sqrt(tempv1hmode/nhpper)
+      fold into joint disp misfit, e.g.:
+          sqrt((tempv1 + tempv3 + tempv1hmode)/(npper + neper + nhpper))
+      (CNan _0.7_0.3 variant reweights fundamental/higher 0.7/0.3.)
+
+[ ] CALmodel.C : initmodel()
+      initialize the new hp* fields (nhpper=0, fhphase=0, clear vectors).
+
+--------------------------------------------------------------------------------
+E. POST-PROCESS  (Codes/MCMC_flex/do_MC_Para_Post_process_v3.C)
+--------------------------------------------------------------------------------
+[ ] do_MC_Para_Post_process_v3.C
+      read/forward/select + OUTPUT the higher-mode curve.
+      CNan writes MC.{sta}.phmode.disp (period hpvel hpvelo unhpvelo) and
+      tracks phmisfit / hpL for the min-misfit and average models.
+
+--------------------------------------------------------------------------------
+F. CONTROL FILE + SETUP + INPUT DATA
+--------------------------------------------------------------------------------
+[ ] CHT/MonteCarlo/00_make_file_control.sh
+      add the higher-mode file + flag to the "disp" line, e.g.:
+          disp 1 2 1 {sta}.ph <HFLAG> {sta}.hph
+      (surn increases by 1 per extra input.)
+
+[ ] SetupData/parameters.py  +  SetupData/src/setup_layercake.py
+      detect/write higher-mode data availability into in.data_{sta} /
+      in.connector; stage {sta}.hph beside {sta}.ph.
+
+[ ] input data:  CHT/data/{sta}_data/{sta}.hph
+      per station, 3 whitespace cols:  period[s]  phase_vel[km/s]  unc[km/s]
+      (identical format to {sta}.ph, just the higher-mode branch)
+      CAVEAT: CNan's .hph picks were generated on the Utah CHPC cluster
+              (/uufs/chpc.utah.edu/...) via make_hph.sh (*_mode1.ph -> .hph);
+              not regenerable on this machine without that source data.
+
+--------------------------------------------------------------------------------
+G. PLOTTING  (AnalyzeResult/)
+--------------------------------------------------------------------------------
+[ ] AnalyzeResult/inversion_plot_vfinal_flex.py
+      plot fundamental + higher-mode dispersion (CNan output:
+      {sta}_MCMC_fundamental_higher_mode.png).
+
+--------------------------------------------------------------------------------
+NOT NEEDED
+--------------------------------------------------------------------------------
+[x] read_in.C  -- our case 3 already parses N generic (flag,file) pairs,
+      identical to CNan; no change required.
+
+================================================================================
+ !!! FLAG-NUMBERING GOTCHA (do NOT blindly copy CNan's "2 {sta}.hph") !!!
+================================================================================
+ The disp-line flag meanings DIFFER between versions:
+
+   flag | OUR version (CALmodel.C readdisp1) | CNan version
+   -----+------------------------------------+---------------------
+    1   | fundamental phase                  | fundamental phase
+    2   | GROUP velocity                     | HIGHER-mode phase
+    3   | ellipticity (H/V)                  | ellipticity
+    4   | (unused)                           | GROUP velocity
+
+ In our code flag 2 == group. So either:
+   (i)  adopt CNan numbering: 2 = higher phase, move group to 4, OR
+   (ii) assign a NEW flag (e.g. 5 = higher phase) to keep group=2 intact.
+ Whatever is chosen MUST be consistent across:
+   readdisp1 (CALmodel.C), 00_make_file_control.sh, and SetupData.
+
+================================================================================
+ BUILD REMINDER (this machine)
+================================================================================
+ - conda activate MCMC   (python 3.7.6 / numpy 1.18.1 / pandas 1.0.1)
+ - rebuild:  cd Codes/MCMC_flex && make clean && make do_MC_Para \
+                                   && make do_MC_Para_Post_process_v3
+ - Makefile already has: LDLIBS = -L$(CONDA_PREFIX)/lib -Wl,-rpath,$(CONDA_PREFIX)/lib
+ - If porting Fortran/C++ from CNan's ORIGINAL code, expect the same gcc-13
+   issues we fixed here: missing return -> SIGILL; #include <random> in
+   head_c++/gen_random.C; -lgfortran linking.
+
+================================================================================
+ SUGGESTED ORDER
+================================================================================
+ 1) A + B  (init.f, fast_surf.f, CALforward.C) + C (struct) -> can forward &
+    inspect higher-mode curves before touching misfit.
+ 2) D (readdisp1 + misfit) + F (control/setup/data) -> actually fit higher mode.
+ 3) E (post-process) + G (plot) -> outputs & figures.
+================================================================================

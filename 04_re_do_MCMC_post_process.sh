@@ -1,0 +1,144 @@
+#!/bin/bash
+# -------------------- Run setup the data ---------------------------------------
+# cd SetupData/
+# python setup_VN.py
+# cd ..
+# -------------- Recomplile the MCMC code ---------------------------------------
+echo "Run the MCMC inversion. Recompile the program or not??? "
+echo ""
+echo " If yes -> Press y "
+echo " If no -> Press other key "
+echo ""
+# read -p "Press any key to continue... " -n1 -s
+echo "Press any key to continue ... "
+while [ true ] ; do
+# read -t 3 -n 1
+read key
+if [[ $key = "y" ]] || [[ $key = "Y" ]] ; then
+    echo "-------------------------------------"
+    echo "Recompile the program !!!"
+    echo "-------------------------------------"
+    
+    cd ./Codes/MCMC_flex
+    make clean
+    make do_MC_Para
+    make do_MC_Para_Post_process_v3
+    cd ../../
+    break;
+else
+    echo "-------------------------------------"
+    echo "Run without recompile the program !!!"
+    echo "-------------------------------------"
+    break;
+fi
+done
+
+# -------------------------------------------------------------------------------
+# # Start MCMC inversion
+
+echo "-----------------------------------------------"
+echo "Re-do the MCMC post process for loop of station !!!"
+echo "-----------------------------------------------"
+
+cd CHT/MonteCarlo
+
+for sta in $(awk '{print $1}' ../sta_now)
+# for sta in $(awk '{print $1}' ../runstations.lst)
+do
+
+cur_work_dir=`pwd`
+# ========================= HVL: Do the MCMC with flexible input: ===========================================
+output_file_1='output_'$sta'_tmp.txt'
+output_file_2='output_'$sta'.txt'
+# check point strings
+check_point_1="do_MC_Para done!!!" # do_MC_Para
+check_point_2="post process finish!!! ready to plot!" # do_MC_Para_post_process
+# pre condition for strings match
+string_1="Hehe"
+string_2="Haha"
+# Number of run 
+n_run_time_1=0 # do_MC_Para
+n_run_time_2=0 # do_MC_Para_post_process
+# ----- MCMC code dir ------
+# Main dir:
+main_dir=$(dirname $(dirname "$cur_work_dir"))
+# Project dir
+project_dir=$(dirname "$cur_work_dir")
+# Code dir
+code_dir=$main_dir/"Codes/MCMC_flex"
+# data dir
+data_dir=$project_dir"/data/"$sta"_data"
+# control link
+sfile=$data_dir"/"$sta.control
+
+# >>>>>>>>>>>>>>>>>>>>> make file control <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# It important 
+ls make_control_file*
+#
+echo " > runing the file: make_control_file.sh"
+
+# make the control file for station with 3000 iteration and 20 cores used
+sh 00_make_file_control.sh ${sta} 2>&1 | tee $output_file_1
+echo "done!"
+# # >>>>>>>>>>>>>>>>>>>>> runing MCMC post process part <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+echo "-----------------------------------------------"
+echo "Run the MCMC post-process for station: $sta !!!"
+echo "-----------------------------------------------"
+# remove the file if have the previous run
+rm $output_file_2
+# >>>>>>>>>>>>>>>
+echo "time $code_dir/do_MC_Para_Post_process_v3 $sfile" > 00run2.sh
+# post process finish!!! ready to plot!
+if ! test -f $output_file_2; then
+  # If the file exist!
+    echo $output_file_2 ' does not exist!'
+    sh 00run2.sh > "$output_file_2"
+    echo "Run the do_MC_Para_post_process_v3 for the first time!" >> "00_run_"$sta"_report.txt"
+else
+    # If the output file not exist then run the 1st time
+    # Read the last line of the input file
+    string_2=$(tail -n 1 "$output_file_2")
+    if [[ $string_2 == *"$check_point_2"* ]]; then
+        echo "String match!"
+        echo "String match!" >> "00_run_"$sta"_report.txt"
+        cp $output_file_2 ${sta}/
+        break;
+        # break;
+    else
+        echo "Something was wrong!" 
+        echo "Something was wrong!" >> "00_run_"$sta"_report.txt"
+    fi
+fi
+
+if test -f $output_file_2; then
+  cp $output_file_2 ${sta}/
+else
+  echo "No such file or directory after run the MCMC_para_post_process? $output_file_2"
+  echo "No such file or directory after run the MCMC_para_post_process? $output_file_2" >> "00_run_"$sta"_report.txt"
+  stop
+fi
+
+# echo  `ls $sta | wc -l`
+# # CNliu fixmantle Weiting HV + PhV
+## sh MonteCarlo/do_one_wtVphHV__4pt9kms_fixedMantle_1MsplineLT2Mspline.sh $sta 300 8 > 'output_'$sta'_tmp.txt'
+
+# # ##CNliu Weighting but freemantle + close RF
+# sh do_one_wtVphHV__4pt9kms_posCrustToMantle_1MsplineLT2Mspline.sh ${sta} 3000 18 2>&1 | tee 'output_'$sta'_tmp.txt'
+# sh do_one_wtVphHV__4pt9kms_posCrustToMantle_1MsplineLT2Mspline.sh ${sta} 3000 4 2>&1 | tee 'output_'$sta'_tmp.txt' # For test
+echo "-----------------------------------------------"
+echo "Seem all good right now - Plot the figure for station: $sta !!!"
+echo "-----------------------------------------------"
+
+# Check the file of post process exist
+if ! test -f "$sta/$output_file_2"; then
+    echo "$sta/$output_file_2 not exist! Can not plot!"
+    echo "$sta/$output_file_2 not exist! Can not plot!" >> "00_run_"$sta"_report.txt"
+    # sh do_one_wtVphHV__4pt9kms_posCrustToMantle_1MsplineLT2Mspline.sh ${sta} 3000 18 > 'output_'$sta'_tmp.txt'
+else
+    python ../../AnalyzeResult/inversion_plot_vfinal_flex.py ${sta} .
+fi
+# 
+    echo "-------------------------------------"
+    echo "MCMC process finished for the station $sta !!!"
+    echo "-------------------------------------"
+done

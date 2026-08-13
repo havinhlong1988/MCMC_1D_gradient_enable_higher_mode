@@ -1,0 +1,19 @@
+model /home/longhv/Research/Projects/MCMC_CHT_layercake_20260311/test_cases/test_moho_60_mantle_equal_last_crust_H14_vp/CHT/data/00940_data/mod.00940
+para /home/longhv/Research/Projects/MCMC_CHT_layercake_20260311/test_cases/test_moho_60_mantle_equal_last_crust_H14_vp/CHT/data/00940_data/in.para_00940
+disp 1 2 1 /home/longhv/Research/Projects/MCMC_CHT_layercake_20260311/test_cases/test_moho_60_mantle_equal_last_crust_H14_vp/CHT/data/00940_data/00940.ph 3 /home/longhv/Research/Projects/MCMC_CHT_layercake_20260311/test_cases/test_moho_60_mantle_equal_last_crust_H14_vp/CHT/MonteCarlo/indata/in.hv
+rf /home/longhv/Research/Projects/MCMC_CHT_layercake_20260311/test_cases/test_moho_60_mantle_equal_last_crust_H14_vp/CHT/MonteCarlo/indata/in.rf 2.5
+Qmodel /home/longhv/Research/Projects/MCMC_CHT_layercake_20260311/test_cases/test_moho_60_mantle_equal_last_crust_H14_vp/CHT/MonteCarlo/indata/Qmodel.dat
+p 1
+mono 1
+monol 2
+gradl
+tt 12
+jt 10000
+outdir 00940 00940 -2
+n_thread 30
+indata /home/longhv/Research/Projects/MCMC_CHT_layercake_20260311/test_cases/test_moho_60_mantle_equal_last_crust_H14_vp/CHT/data/00940_data/in.data_00940
+mc_range 5.0
+dstep 0.1
+plottype 1
+invtype 1.0
+end

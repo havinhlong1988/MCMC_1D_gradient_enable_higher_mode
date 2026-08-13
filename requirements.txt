@@ -1,0 +1,7 @@
+# Pip fallback for the Python libraries (setup + plotting).
+# Requires Python 3.7.x (these pinned versions have no wheels for 3.9+).
+# Prefer the conda route (environment.yml); use this only inside an existing
+# Python 3.7 environment:  pip install -r requirements.txt
+numpy==1.18.1
+pandas==1.0.1
+matplotlib==3.4.3
