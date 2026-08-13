@@ -285,7 +285,7 @@ int main( int argc, char *argv[])
   time_t start,end;
   double tdif,TTT,gaus;
   double mc_range, dstep;
-  int plottype,invtype;
+  int plottype,invtype,selstyle=-1;
   FILE *outf;
   int Qflag = 0, maxj;
   //ofstream outbin;
@@ -321,12 +321,12 @@ int main( int argc, char *argv[])
   if (read_in (argv[1],inmodelnm,inparanm, &surtype, &surn, surflag, vdisp, \
                inrfnm, &gaus, Qname, &Qflag, Ql, &pp, &monoc, vmono,\
                vgrad, &TTT, &jumpn, outdir, outname, &flagw, &n_core,indatanm,\
-               &mc_range, &dstep, &plottype, &invtype)==0) 
+               &mc_range, &dstep, &plottype, &invtype, &selstyle)==0)
     {
       fprintf(stderr,"read_in failed! \n");
       return 0;
     }
-  fprintf(stderr,"Report new test paras: mcrange - dstep - plottype %f %f %d\n",mc_range, dstep, plottype);
+  fprintf(stderr,"Report new test paras: selstyle - mcrange - dstep - plottype %d %f %f %d\n",selstyle, mc_range, dstep, plottype);
   sleep(5);
 
   maxj = (int)((TTT-1)/n_core)+1; // TTT: total jump times;
@@ -939,9 +939,27 @@ cout<<" end of domcv3 get all "<<endl;
   kai_min = *std::min_element(kai_joint.begin(),kai_joint.end());
   if ((kai_min<1000.0) && (kai_min>0.0))
   {
-    if ((mc_range > 100.) || (mc_range <= 0.))
+    // selstyle: -1 = percentage (mc_range in %, 0 < mc_range <= 100)
+    //            1 = absolute   (mc_range = misfit offset above the minimum, mc_range > 0)
+    if (selstyle == -1)
     {
-      fprintf(stderr,"Wrong in model selection range %f\n",mc_range);
+      if ((mc_range > 100.) || (mc_range <= 0.))
+      {
+        fprintf(stderr,"Wrong in model selection range (percentage) %f\n",mc_range);
+        return(0);
+      }
+    }
+    else if (selstyle == 1)
+    {
+      if (mc_range <= 0.)
+      {
+        fprintf(stderr,"Wrong in model selection range (absolute) %f\n",mc_range);
+        return(0);
+      }
+    }
+    else
+    {
+      fprintf(stderr,"Unknown selection_style %d (use -1 percentage or 1 absolute)\n",selstyle);
       return(0);
     }
   // Ranging the disp by percentage
@@ -1023,6 +1041,18 @@ cout<<" end of domcv3 get all "<<endl;
     sort(arr.begin(), arr.end());
   // take the misfit value at element xxx
   kai_cri = arr.back(); // Take all model
+  }
+
+  // --- absolute selection override: threshold = minimum misfit + mc_range ---
+  // (percentage thresholds computed above are kept when selstyle == -1)
+  if (selstyle == 1)
+  {
+    kai_cri = kai_min + mc_range;
+    if (!((ihv+iph+igv==0) || (kai_disp.size() < 200)))
+      minmisfit_disp_o = minmisfit_disp + mc_range;
+    if (!((irf==0) || (kai_rf.size() < 200)))
+      minmisfit_rf_o = minmisfit_rf + mc_range;
+    fprintf(stderr,"ABSOLUTE selection: kai_cri=%g (min %g + offset %g)\n",kai_cri,kai_min,mc_range);
   }
 
   }

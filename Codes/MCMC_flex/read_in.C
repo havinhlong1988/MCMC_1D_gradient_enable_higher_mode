@@ -12,7 +12,7 @@ char *inrfnm, double *gaus, char *Qname, int *Qflag, \
 vector <int> &Ql, double *pp, int *monoc, vector <int> &vmono, \
 vector <int> &vgrad, double *TTT, int *jumpn, \
 char *outdir, char *outname, int *flagw, int *n_core, char *indatanm,\
-double *mc_range, double *dstep, int *plottype, int *invtype) 
+double *mc_range, double *dstep, int *plottype, int *invtype, int *selstyle)
 {
   
   fprintf(stderr,"> read_in: read in\n");
@@ -52,6 +52,7 @@ double *mc_range, double *dstep, int *plottype, int *invtype)
   numbers["dstep"] = 16;
   numbers["plottype"] = 17;
   numbers["invtype"] = 18;
+  numbers["selstyle"] = 19;
   numbers["end"] = 0;
 
   *flagw = -1;
@@ -191,6 +192,14 @@ double *mc_range, double *dstep, int *plottype, int *invtype)
             cout<<"wrong invert type flag!"<<endl; return 0;
           }
            *invtype = atoi(vargv[1].c_str());
+        break;
+
+        case 19:
+        if (vargv.size() != 2)
+          {
+            cout<<"wrong selection style flag!"<<endl; return 0;
+          }
+           *selstyle = atoi(vargv[1].c_str());
         break;
 
          case 0:

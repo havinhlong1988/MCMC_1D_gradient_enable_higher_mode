@@ -8,11 +8,12 @@ mono 1
 monol 2
 gradl
 tt 12
-jt 10000
+jt 2000
 outdir 01390 01390 -2
 n_thread 1
 indata /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/data/01390_data/in.data_01390
-mc_range 10.0
+selstyle -1
+mc_range 10.00
 dstep 0.1
 plottype 1
 invtype 1.0

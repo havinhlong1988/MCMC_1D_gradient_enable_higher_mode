@@ -59,7 +59,7 @@ int main( int argc, char *argv[])
   time_t start,end;
   double tdif,TTT,gaus;
   double mc_range, dstep;
-  int plottype, invtype;
+  int plottype, invtype, selstyle=-1;
   FILE *outf;
   FILE *ff0; //EMB
   int Qflag = 0, maxj;
@@ -85,7 +85,7 @@ int main( int argc, char *argv[])
   if (read_in (argv[1],inmodelnm,inparanm, &surtype, &surn, surflag, vdisp, \
   inrfnm, &gaus, Qname, &Qflag, Ql, &pp, &monoc, vmono,\
   vgrad, &TTT, &jumpn, outdir, outname, &flagw, &n_core,\
-  indatanm, &mc_range, &dstep, &plottype, &invtype)==0) 
+  indatanm, &mc_range, &dstep, &plottype, &invtype, &selstyle)==0)
   {
     fprintf(stderr,"read_in failed! \n");
     return 0;

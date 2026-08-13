@@ -167,9 +167,15 @@ MC_inversion_type = 1; # 1 for layered, 2 for bspline
 RF_gaussian_width=2.5; # Gaussian width for foward RFs (need to consistent with factor use to calculate input RFs)
 MC_number_of_jump=12; # Number of jump
 MC_number_of_iteration=2000; # Number of iteration each run
-MC_number_of_cores=1; # Number of cores use in distribution calculation
-# Model selection range (in percent) for all passed MCMC_para: e.g. 20%, 50%, maximum 100% (use when min misfit < 10.)
-MC_percentage_post_process_select=10; 
+MC_number_of_cores=5; # Number of cores use in distribution calculation
+# Posterior selection style:
+#   -1 = by percentage of posterior population (MC_post_process_select in %, e.g. 10 = best 10%)
+#    1 = by absolute value: keep models with misfit <= (minimum misfit + MC_post_process_select)
+selection_style = -1;
+# Model selection threshold value.
+#   if selection_style == -1 : percent for all passed MCMC_para (e.g. 20 = best 20%, max 100)
+#   if selection_style ==  1 : absolute misfit offset above the minimum misfit (e.g. 0.5)
+MC_post_process_select=10;
 # Final model depth step characterize by average whole selected model.
 depth_step=0.05; 
 # Output model plot stype (layercake style = 0; gradient style = 1)

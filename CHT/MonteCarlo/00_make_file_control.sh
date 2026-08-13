@@ -26,12 +26,13 @@ gw=$(awk 'NR==2 { printf "%.1f\n", $1 }' "$f0") # gaussian width for RF
 njumps=$(awk 'NR==3 { printf "%d\n", $1 }' "$f0") # Number of jump
 nruns=$(awk 'NR==4 { printf "%d\n", $1 }' "$f0") # number of inversion model
 nthread=$(awk 'NR==5 { printf "%d\n", $1}' "$f0") # number of cores use
-mc_range=$(awk 'NR==6 { printf "%.1f\n", $1}' "$f0") # percentage of final population selection
-dstep=$(awk 'NR==7 { printf "%.1f\n", $1}' "$f0") # average step for final model
-plottype=$(awk 'NR==8 { printf "%d\n", $1}' "$f0") # plot style layercake or gradient
-mc_qc=$(awk 'NR==9 { printf "%d\n", $1}' "$f0") # model quality control flag (use goodmodel function to constrain the model)
-sedmonocheck=$(awk 'NR==10 { printf "%d\n", $1}' "$f0") # check the monochromatic increment of sedimentary
-crustmonocheck=$(awk 'NR==11 { printf "%d\n", $1}' "$f0") # check the monochromatic increment of crust
+selstyle=$(awk 'NR==6 { printf "%d\n", $1}' "$f0") # selection style: -1 percentage, 1 absolute(min misfit + value)
+mc_range=$(awk 'NR==7 { printf "%.2f\n", $1}' "$f0") # selection threshold value (percent if selstyle=-1, absolute offset if selstyle=1)
+dstep=$(awk 'NR==8 { printf "%.1f\n", $1}' "$f0") # average step for final model
+plottype=$(awk 'NR==9 { printf "%d\n", $1}' "$f0") # plot style layercake or gradient
+mc_qc=$(awk 'NR==10 { printf "%d\n", $1}' "$f0") # model quality control flag (use goodmodel function to constrain the model)
+sedmonocheck=$(awk 'NR==11 { printf "%d\n", $1}' "$f0") # check the monochromatic increment of sedimentary
+crustmonocheck=$(awk 'NR==12 { printf "%d\n", $1}' "$f0") # check the monochromatic increment of crust
 
 # -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -114,6 +115,7 @@ echo jt $nruns >> $fcontrol
 echo outdir $sta $sta  -2 >> $fcontrol
 echo n_thread $nthread >> $fcontrol
 echo indata $ff5 >> $fcontrol
+echo selstyle $selstyle >> $fcontrol
 echo mc_range $mc_range >> $fcontrol
 echo dstep $dstep >> $fcontrol
 echo plottype $plottype >> $fcontrol
