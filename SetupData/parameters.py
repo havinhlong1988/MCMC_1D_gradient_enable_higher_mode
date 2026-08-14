@@ -166,7 +166,7 @@ ddm=2.5; # sub-layer thickness for sediment (e.g. 5.0 km each)
 MC_inversion_type = 1; # 1 for layered, 2 for bspline
 RF_gaussian_width=2.5; # Gaussian width for foward RFs (need to consistent with factor use to calculate input RFs)
 MC_number_of_jump=12; # Number of jump
-MC_number_of_iteration=2000; # Number of iteration each run
+MC_number_of_iteration=10000; # Number of iteration each run
 MC_number_of_cores=5; # Number of cores use in distribution calculation
 # Posterior selection style:
 #   -1 = by percentage of posterior population (MC_post_process_select in %, e.g. 10 = best 10%)

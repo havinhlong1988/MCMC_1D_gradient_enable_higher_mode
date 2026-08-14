@@ -1,0 +1,20 @@
+model /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/data/00740_data/mod.00740
+para /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/data/00740_data/in.para_00740
+disp 1 2 1 /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/data/00740_data/00740.ph 3 /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/MonteCarlo/indata/in.hv
+rf /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/MonteCarlo/indata/in.rf 2.5
+Qmodel /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/MonteCarlo/indata/Qmodel.dat
+p 1
+mono 1
+monol 2
+gradl
+tt 12
+jt 10000
+outdir 00740 00740 -2
+n_thread 5
+indata /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/data/00740_data/in.data_00740
+selstyle -1
+mc_range 10.00
+dstep 0.1
+plottype 1
+invtype 1.0
+end
