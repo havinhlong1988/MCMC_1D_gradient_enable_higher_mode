@@ -588,7 +588,10 @@ def main():
     # -------------------------------------------------------------------------
     # Read posterior RF / Vs
     # -------------------------------------------------------------------------
-    posteriorrftime, posteriorfval = read_posterior_rf_blocks(paths["posteriorfilerf"])
+    if irf == 1:
+        posteriorrftime, posteriorfval = read_posterior_rf_blocks(paths["posteriorfilerf"])
+    else:
+        posteriorrftime, posteriorfval = [], []
     posteriorVs, posteriordepth = read_posterior_vs_and_depth(paths["posteriorfile"], plot_type)
 
     with open(paths["out_posterior_txt"], "w") as fobj:
@@ -648,7 +651,10 @@ def main():
         fcheckperhv, fcheckHV = np.loadtxt(paths["startfilehv"], usecols=(0, 1), unpack=True)
     else:
         fcheckperhv, fcheckHV = np.array([]), np.array([])
-    timerf0, rf0 = np.genfromtxt(paths["startfilerf"], usecols=(0, 1), unpack=True)
+    if irf == 1:
+        timerf0, rf0 = np.genfromtxt(paths["startfilerf"], usecols=(0, 1), unpack=True)
+    else:
+        timerf0, rf0 = np.array([]), np.array([])
 
     # -------------------------------------------------------------------------
     # Final average model / min misfit model
@@ -693,12 +699,16 @@ def main():
         mceper0, mchvo0 = np.loadtxt(paths["mean_e"], usecols=(0, 1), unpack=True)
         mchvounc = np.loadtxt(paths["hvdatafile"], usecols=(2), unpack=True)
 
-    mcrftime, mcrfval, mcrotime, mcrfo, mcrfounc = np.loadtxt(
-        paths["final_rf"], usecols=(0, 1, 2, 3, 4), unpack=True
-    )
-    mcrftime0, mcrfval0, mcrotime0, mcrfo0, mcrfounc0 = np.loadtxt(
-        paths["mean_rf"], usecols=(0, 1, 2, 3, 4), unpack=True
-    )
+    if irf == 1:
+        mcrftime, mcrfval, mcrotime, mcrfo, mcrfounc = np.loadtxt(
+            paths["final_rf"], usecols=(0, 1, 2, 3, 4), unpack=True
+        )
+        mcrftime0, mcrfval0, mcrotime0, mcrfo0, mcrfounc0 = np.loadtxt(
+            paths["mean_rf"], usecols=(0, 1, 2, 3, 4), unpack=True
+        )
+    else:
+        mcrftime = mcrfval = mcrotime = mcrfo = mcrfounc = np.array([])
+        mcrftime0 = mcrfval0 = mcrotime0 = mcrfo0 = mcrfounc0 = np.array([])
 
     mincper, mincpf, mincpo, mincpounc = np.loadtxt(
         paths["minmisfit_p_disp"], usecols=(0, 1, 2, 3), unpack=True
@@ -709,9 +719,12 @@ def main():
         )
     else:
         minceper = minchvf = minchvo = minchvounc = np.array([])
-    mincrftime, mincrfval, mincrotime, mcinrfo, mincrfounc = np.loadtxt(
-        paths["minmisfit_rf"], usecols=(0, 1, 2, 3, 4), unpack=True
-    )
+    if irf == 1:
+        mincrftime, mincrfval, mincrotime, mcinrfo, mincrfounc = np.loadtxt(
+            paths["minmisfit_rf"], usecols=(0, 1, 2, 3, 4), unpack=True
+        )
+    else:
+        mincrftime = mincrfval = mincrotime = mcinrfo = mincrfounc = np.array([])
 
     # -------------------------------------------------------------------------
     # Extra info
@@ -918,7 +931,7 @@ def main():
 
         ax2.plot(mcrftime0, mcrfval0, "wo", lw=1, ms=3, label="Final RF", zorder=7, mec="k")
 
-    ax2.plot(timerf0, rf0, "r-", ms=10, label="Starting RFs", zorder=5)
+        ax2.plot(timerf0, rf0, "r-", ms=10, label="Starting RFs", zorder=5)
     ax2.legend(loc="upper right", fontsize=15)
     ax2.set_ylim(RF_YLIM)
     ax2.set_xlabel("Time (s)", fontdict=FONT_LABEL)

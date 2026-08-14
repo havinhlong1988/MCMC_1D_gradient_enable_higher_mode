@@ -16,10 +16,10 @@ Each item below = FILE + WHAT TO CHANGE. "[ ]" = not done yet.
 --------------------------------------------------------------------------------
 A. FORWARD ENGINE  (Fortran, Codes/MCMC_flex/DISP2/)
 --------------------------------------------------------------------------------
-[ ] DISP2/init.f
+[x] DISP2/init.f   (DONE 2026-08-14)
       line 58:  mode=1   ->   mode=2          (compute 2 modes)
 
-[ ] DISP2/fast_surf.f
+[x] DISP2/fast_surf.f   (DONE 2026-08-14)
       - extend SUBROUTINE FAST_SURF signature with 6 extra output args:
           ... uR1,uL1,cR1,cL1,rR1,rL1
       - declare them:  real*4 uL1(nper),uR1(nper),cL1(nper),cR1(nper),
@@ -33,7 +33,8 @@ A. FORWARD ENGINE  (Fortran, Codes/MCMC_flex/DISP2/)
 --------------------------------------------------------------------------------
 B. FORWARD WRAPPER  (C++, Codes/MCMC_flex/CALforward.C)
 --------------------------------------------------------------------------------
-[ ] CALforward.C
+[x] CALforward.C   (DONE 2026-08-14; kept OUR invtype arg + OUR period1 logic,
+      extended to append hpper. Stores cR1 -> disp.hpvel when nhpper>0.)
       - update extern prototype (line ~12) of fast_surf_ with the 6 new args.
       - allocate arrays cR1,uR1,rR1 (and cL1,uL1,rL1) like the *0 arrays.
       - build the period list from BOTH pper AND hpper before the call.
@@ -44,7 +45,7 @@ B. FORWARD WRAPPER  (C++, Codes/MCMC_flex/CALforward.C)
 --------------------------------------------------------------------------------
 C. DATA STRUCTURE  (Codes/MCMC_flex/INITstructure.h)
 --------------------------------------------------------------------------------
-[ ] INITstructure.h  (disp struct)  -- currently has ZERO hp* fields
+[x] INITstructure.h  (disp struct)   (DONE 2026-08-14)
       add, parallel to fundamental (npper/pper/pvelo/pvel/unpvelo):
           int nhpper;
           vector<double> hpper, hpvelo, hpvel, unhpvelo;
@@ -67,8 +68,8 @@ D. DATA LOADING + MISFIT  (C++, Codes/MCMC_flex/CALmodel.C)
           sqrt((tempv1 + tempv3 + tempv1hmode)/(npper + neper + nhpper))
       (CNan _0.7_0.3 variant reweights fundamental/higher 0.7/0.3.)
 
-[ ] CALmodel.C : initmodel()
-      initialize the new hp* fields (nhpper=0, fhphase=0, clear vectors).
+[x] CALmodel.C : initmodel()   (DONE 2026-08-14)
+      initialize the new hp* fields (nhpper=0, fhphase=0, phmisfit=0, hpL=0).
 
 --------------------------------------------------------------------------------
 E. POST-PROCESS  (Codes/MCMC_flex/do_MC_Para_Post_process_v3.C)

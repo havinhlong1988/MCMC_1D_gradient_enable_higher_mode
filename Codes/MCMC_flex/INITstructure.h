@@ -52,16 +52,20 @@ int nflag;
 struct dispdef{
 int npper,ngper,neper;
 int fphase,fgroup,fellip;
+int nhpper;            // number of higher-mode phase periods
+int fhphase;           // flag: higher-mode phase data present
 
 double pL,pmisfit,gL,gmisfit,eL,emisfit,L,misfit;
+double phmisfit,hpL;   // higher-mode phase misfit / likelihood
 //period, liability,misfit
 vector<int> flags;
 vector<double> pper,pvelo,pvel,unpvelo;
 vector<double> gper,gvelo,gvel,ungvelo;
 vector<double> eper,evelo,evel,unevelo;
+vector<double> hpper,hpvelo,hpvel,unhpvelo;   // higher-mode phase (fundamental+1)
 vector<double> period1;
 //readin period, readin vel, model-derived vel, readin unc;
-//period1 stores the period that will be computed 
+//period1 stores the period that will be computed
 };
 
 struct datadef{
