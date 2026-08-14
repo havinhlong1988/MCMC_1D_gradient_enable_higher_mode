@@ -51,8 +51,13 @@ int goodmodel(modeldef &model, vector<int> vmono, vector<int> vgrad)
     model.data.disp.neper = 0;
     model.data.disp.eL = 0;
     model.data.disp.emisfit = 0;
-    model.data.disp.fellip = 0; 
- 
+    model.data.disp.fellip = 0;
+
+	  model.data.disp.nhpper=0;
+	  model.data.disp.phmisfit=0.;
+	  model.data.disp.hpL=0.;
+	  model.data.disp.fhphase=0;
+
 	  model.data.p=0.;
 	  model.data.L=0.;
 	  model.data.misfit=0.;
@@ -167,9 +172,10 @@ int goodmodel(modeldef &model, vector<int> vmono, vector<int> vgrad)
                 double this_per = atof(v[0].c_str());
 
                 // Force Vph only uses periods < 1.0 sec
-                if (this_per >= 1.0) continue; // remove all period > 1.0
+                // if (this_per >= 1.0) continue; // remove all period > 1.0
+                // ^ period limit disabled; re-enable this line to test the <1.0 s cut
 
-                cv1.push_back(this_per); 
+                cv1.push_back(this_per);
                 if (size == 1) {cv2.push_back(-1.); cv3.push_back(-1.);}
                 if (size > 1 and size <2) {cv2.push_back(atof(v[1].c_str())); cv3.push_back(-1.);}
                 if (size > 2) 

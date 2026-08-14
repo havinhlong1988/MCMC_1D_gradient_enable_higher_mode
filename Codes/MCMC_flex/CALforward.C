@@ -9,7 +9,8 @@ extern"C"
 //void theo_(int *n,double *fbeta,double *h,double *vps,double *qa,double *fs,double *din,double *a0,double *c0,double *t0,int *nd,double *rx);
 void theo_ (int *n,float *fbeta,float *h,float *vps,float *qa,float *qb,float *fs,float *din,float *a0,float *c0,float *t0,int *nd,float *rx);
 //void fast_surf__(int *n_layer0,int *kind0,double *a_ref0,double *b_ref0,double *rho_ref0,double *d_ref0,double *qs_ref0,double *cvper,int *ncvper,double *uR0,double *uL0,double *cR0,double *cL0);
-void fast_surf_(int *n_layer0,int *kind0,float *a_ref0,float *b_ref0,float *rho_ref0,float *d_ref0,float *qs_ref0,float *cvper,int *ncvper,float *uR0,float *uL0,float *cR0,float *cL0,float *rR0, float *rL0);
+//void fast_surf_(int *n_layer0,int *kind0,float *a_ref0,float *b_ref0,float *rho_ref0,float *d_ref0,float *qs_ref0,float *cvper,int *ncvper,float *uR0,float *uL0,float *cR0,float *cL0,float *rR0, float *rL0);
+void fast_surf_(int *n_layer0,int *kind0,float *a_ref0,float *b_ref0,float *rho_ref0,float *d_ref0,float *qs_ref0,float *cvper,int *ncvper,float *uR0,float *uL0,float *cR0,float *cL0,float *rR0, float *rL0, float *uR1,float *uL1,float *cR1,float *cL1,float *rR1, float *rL1);
 }
 /*========CONTENT==========
 int compute_disp(modeldef &model)
@@ -25,17 +26,22 @@ int compute_disp(modeldef &model,int invtype)// WILL BE CHANGED LATER
   int newnlayer,nn,i,k,nper,nper1,N=1000;
   float *tvs, *tvp, *tqs, *trho, *tthick; // can use a 2d array for simplicity. but to make code clear, use 1d here.
   float *uR0,*uL0,*cR0,*cL0,*rR0,*rL0,*period;
+  float *uR1,*uL1,*cR1,*cL1,*rR1,*rL1;   // 1st higher mode
   double ttt;
   vector<double>::iterator id;
   vector<double> period1,tvel;
   tvs = new float[N]; tvp = new float[N]; tqs= new float[N]; trho= new float[N]; tthick= new float[N];
   uR0 = new float[N]; uL0 = new float[N]; cR0= new float[N]; cL0= new float[N]; period = new float[N];
   rR0 = new float[N]; rL0 = new float[N];
+  uR1 = new float[N]; uL1 = new float[N]; cR1= new float[N]; cL1= new float[N];
+  rR1 = new float[N]; rL1 = new float[N];
   for(i=0;i<N;i++) // initial setting
 	{
 	 *(tvs+i)=*(tvp+i)=*(tqs+i)=*(trho+i)=*(tthick+i)=0.;
 	 *(uR0+i)=*(uL0+i)=*(cR0+i)=*(cL0+i)=*(period+i)=0.;
          *(rR0+i)=*(rL0+i)=0.;
+         *(uR1+i)=*(uL1+i)=*(cR1+i)=*(cL1+i)=0.;
+         *(rR1+i)=*(rL1+i)=0.;
 	}
   if(model.flag!=1)
 	{
@@ -83,7 +89,7 @@ int compute_disp(modeldef &model,int invtype)// WILL BE CHANGED LATER
   //cout<<"last element check.. nn "<<nn<<" k "<<k<<" "<<tvs[nn]<<endl;
   nn=nn+1;//#of element inside the arrays
 
-  nper=0;  
+  nper=0;
   if(model.data.disp.fphase+model.data.disp.fgroup+model.data.disp.fellip>0)
 	{
 	  period1=model.data.disp.period1;//temo
@@ -94,9 +100,15 @@ int compute_disp(modeldef &model,int invtype)// WILL BE CHANGED LATER
 	  period1=model.data.disp.gper;
   else if (model.data.disp.fellip>0)
     period1=model.data.disp.eper;
+  else if (model.data.disp.fhphase>0)
+    period1.clear();//higher-mode only: periods appended below
   else
 	  {cout<<"#####wrong model period!!!\n";
 	  exit (0);}
+  // higher-mode phase periods (fundamental+1); appended so cR1 covers them.
+  // period1 (=disp.period1, the set_union of pper/gper/eper) excludes hpper.
+  if(model.data.disp.nhpper>0)
+    period1.insert(period1.end(),model.data.disp.hpper.begin(),model.data.disp.hpper.end());
   //
   sort(period1.begin(),period1.end());
   nper1=period1.size();
@@ -113,7 +125,7 @@ void FAST_SURF_(int *n_layer0,int *kind0,double *a_ref0,double *b_ref0,double *r
 */
   int cflag = 2;
   // fprintf(stderr,"now we'll do the fast_surf!!!! with %d elements and %d period\n",nn, nper);
-  fast_surf_(&nn,&cflag,tvp,tvs,trho,tthick, tqs,period,&nper,uR0,uL0,cR0,cL0,rR0,rL0);
+  fast_surf_(&nn,&cflag,tvp,tvs,trho,tthick, tqs,period,&nper,uR0,uL0,cR0,cL0,rR0,rL0,uR1,uL1,cR1,cL1,rR1,rL1);
   // fprintf(stderr,"now we finish fast_surf!!!! %d %d %d\n",model.data.disp.npper,model.data.disp.ngper,model.data.disp.neper);
 
   // fprintf(stderr,"now we push phase velocity!!!! %d\n",model.data.disp.npper);
@@ -134,9 +146,26 @@ void FAST_SURF_(int *n_layer0,int *kind0,double *a_ref0,double *b_ref0,double *r
 		  model.data.disp.pvel.push_back(cR0[id-period1.begin()]);
             //cout<<period1[id-period1.begin()]<<" "<<cR0[id-period1.begin()]<<endl;
 		}//for i
-	}//if 
+	}//if
 
-  
+  // higher-mode phase velocity (fundamental+1), from cR1
+  if(model.data.disp.nhpper>0)
+	{
+	  model.data.disp.hpvel.clear();
+	  for(i=0;i<model.data.disp.nhpper;i++)
+		{
+		  id=find(period1.begin(),period1.end(),model.data.disp.hpper[i]);
+		  if(id==period1.end())
+			{
+        cout<<"#######!!!canot find hpper "<<model.data.disp.hpper[i]<<" in perio1\n";
+        fprintf(stderr,"cannot find hpper: %g in perio1!\n exit!!\n",model.data.disp.hpper[i]);
+        exit(0);
+        }
+		  model.data.disp.hpvel.push_back(cR1[id-period1.begin()]);
+		}//for i
+	}//if
+
+
   if(model.data.disp.ngper>0)
   // fprintf(stderr,"now push the group velocity!\n");
 	{
@@ -180,7 +209,13 @@ void FAST_SURF_(int *n_layer0,int *kind0,double *a_ref0,double *b_ref0,double *r
   delete[] rR0; //added by EMB
   delete[] cL0;
   delete[] rL0; //added by EMB
-  delete[] period;   
+  delete[] uR1;
+  delete[] uL1;
+  delete[] cR1;
+  delete[] rR1;
+  delete[] cL1;
+  delete[] rL1;
+  delete[] period;
   //cout<<"finish compute DISP!"<<endl;
   // fprintf(stderr,"finish compute DISP! \n");
   return 1;

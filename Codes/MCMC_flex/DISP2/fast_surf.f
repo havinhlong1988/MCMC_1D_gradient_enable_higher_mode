@@ -2,7 +2,8 @@ c-------------------------------------------------------
         subroutine FAST_SURF(n_layer0,kind0,
      &		a_ref0,b_ref0,rho_ref0,d_ref0,qs_ref0,
      &		cvper, ncvper,
-     &		uR0,uL0,cR0,cL0,rR0,rL0)
+     &		uR0,uL0,cR0,cL0,rR0,rL0,
+     &		uR1,uL1,cR1,cL1,rR1,rL1)
 C-------------------------------------------------------
 c       parameter (nsize=1000,nper=200,ndep=20,nmod=1)
 c       parameter (nsize=1000,nper=200,ndep=20,nmod=20)
@@ -45,8 +46,10 @@ c     *d_ref(nsize),qs_ref(nsize)
 	real*4	a_ref0(n_layer0), b_ref0(n_layer0), rho_ref0(n_layer0), 
      *d_ref0(n_layer0), qs_ref0(n_layer0)
 	real*4		cvper(nper)
+	real*4 	uL1(nper), uR1(nper), cL1(nper), cR1(nper),
+     &rR1(nper), rL1(nper)
 
-	
+
 	common/d/  a(nsize),b(nsize),rho(nsize),d(nsize),qs(nsize)
 	common/numbers/n_int_RC,n_int_RU,n_int_LC,n_int_LU,n_layer,n_var
         common/o/  c(nper,nmod),t(nper),ratio(nper,nmod)
@@ -211,11 +214,17 @@ c   if calcul does not return anything b/c the model is bad, etc
               cL(i,1)=0.0
               uL(i,1)=0.0
               rL(i,1)=0.0
+              cL(i,2)=0.0
+              uL(i,2)=0.0
+              rL(i,2)=0.0
           endif
           if (kind.eq.2) then
               cR(i,1)=0.0
               uR(i,1)=0.0
               rR(i,1)=0.0
+              cR(i,2)=0.0
+              uR(i,2)=0.0
+              rR(i,2)=0.0
 c            write(*,*) "precalcul cR: ", cR(i,1),uR(i,1)
 c            write(*,*) "precalcul cR0: ", cR0(i),uR0(i)
           endif
@@ -228,16 +237,22 @@ c        write(*,*) "now finish calcul"
         if(kind.eq.1) n_L_out=kmax
 
 	do i=1,kmax
-	  if(kind.eq.1) then 
+	  if(kind.eq.1) then
 	    cL0(i) = cL(i,1)
             uL0(i) = uL(i,1)
             rL0(i) = rL(i,1)
+	    cL1(i) = cL(i,2)
+            uL1(i) = uL(i,2)
+            rL1(i) = rL(i,2)
 c	    write(*,*) "cL0: ", cL0(i)
           endif
           if (kind.eq.2) then
-            cR0(i) = cR(i,1)     
+            cR0(i) = cR(i,1)
 	    uR0(i) = uR(i,1)
             rR0(i) = rR(i,1)
+            cR1(i) = cR(i,2)
+	    uR1(i) = uR(i,2)
+            rR1(i) = rR(i,2)
 c            write(*,*) "cR0: ", cR0(i),uR0(i)
 	  endif
 	enddo
@@ -250,11 +265,17 @@ c   if calcul does not return anything b/c the model is bad, etc
               cL(i,1)=0.0
               uL(i,1)=0.0
               rL(i,1)=0.0
+              cL(i,2)=0.0
+              uL(i,2)=0.0
+              rL(i,2)=0.0
           endif
           if (kind.eq.2) then
               cR(i,1)=0.0
               uR(i,1)=0.0
               rR(i,1)=0.0
+              cR(i,2)=0.0
+              uR(i,2)=0.0
+              rR(i,2)=0.0
 c            write(*,*) "precalcul cR: ", cR(i,1),uR(i,1)
 c            write(*,*) "precalcul cR0: ", cR0(i),uR0(i)
           endif

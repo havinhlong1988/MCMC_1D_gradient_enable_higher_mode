@@ -55,7 +55,8 @@ c       KEY_ATTEN=     .FALSE.
 
 C-------reading of the input model into "ref_files"-----E
 C       mode=k_max-k_min+1
-        mode=1
+C       mode=1   ! fundamental only (original)
+        mode=2   ! fundamental + 1st higher mode
 
 c-------to define an array of periods--------------------------------S
 c        kmax=int((per_max-per_min)/per_step)+1

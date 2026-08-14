@@ -12,7 +12,14 @@ CC = g++
 CFLAGS = -O2 -Wall -fopenmp -std=c++0x
 # Point the linker/runtime loader at the active conda env's libgfortran
 # (needed when g++ is the system compiler but gfortran comes from conda).
-# CONDA_PREFIX is set automatically when the MCMC env is activated.
+# CONDA_PREFIX is set automatically when the MCMC env is activated; if make
+# is run without the env active it is unset/empty, so fall back to the known
+# MCMC env path (otherwise -L$(CONDA_PREFIX)/lib collapses to -L/lib and the
+# linker fails with "cannot find -lgfortran").
+CONDA_PREFIX ?= $(HOME)/anaconda3/envs/MCMC
+ifeq ($(strip $(CONDA_PREFIX)),)
+CONDA_PREFIX := $(HOME)/anaconda3/envs/MCMC
+endif
 LDLIBS = -L$(CONDA_PREFIX)/lib -Wl,-rpath,$(CONDA_PREFIX)/lib
 INC = -I../boost-1.55.0-gcc630/include
 
