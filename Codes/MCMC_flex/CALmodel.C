@@ -167,7 +167,7 @@ int goodmodel(modeldef &model, vector<int> vmono, vector<int> vgrad)
                 double this_per = atof(v[0].c_str());
 
                 // Force Vph only uses periods < 1.0 sec
-                if (this_per >= 1.0) continue; // remove all period > 1.0
+                // if (this_per >= 1.0) continue; // remove all period > 1.0
 
                 cv1.push_back(this_per); 
                 if (size == 1) {cv2.push_back(-1.); cv3.push_back(-1.);}

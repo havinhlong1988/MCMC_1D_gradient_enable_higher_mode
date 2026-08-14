@@ -13,7 +13,7 @@ outdir 01390 01390 -2
 n_thread 5
 indata /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/data/01390_data/in.data_01390
 selstyle -1
-mc_range 10.00
+mc_range 5.00
 dstep 0.1
 plottype 1
 invtype 1.0

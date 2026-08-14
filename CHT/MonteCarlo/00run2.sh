@@ -1,1 +1,1 @@
-time /home/longhv/Research/Projects/MCMC_CHT_layercake_20260311/test_cases/test_moho_60_mantle_equal_last_crust/Codes/MCMC_flex/do_MC_Para_Post_process_v3 /home/longhv/Research/Projects/MCMC_CHT_layercake_20260311/test_cases/test_moho_60_mantle_equal_last_crust/CHT/data/00990_data/00990.control
+time /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/Codes/MCMC_flex/do_MC_Para_Post_process_v3 /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/data/01390_data/01390.control
