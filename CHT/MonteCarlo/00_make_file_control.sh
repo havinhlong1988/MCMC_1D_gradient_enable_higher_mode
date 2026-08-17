@@ -91,7 +91,16 @@ else
     pval=1 # use dispersion only
 fi
 # echo disp 1 3 1 $ff0 2 $ff1 3 $ff2 >> $fcontrol #1=Rayleigh,3=number of inputs [phase&group&H/V],1 --> phase file, 2--> group vel, 3 --> h/v file
-echo disp 1 2 1 $ff0 3 $ff2 >> $fcontrol #1=Rayleigh,3=number of inputs [phase&group&H/V],1 --> phase file, 2--> group vel, 3 --> h/v file
+# higher-mode (1st) phase velocity: flag 5, file {sta}.hph (only when present & non-empty)
+ff7=$datadir"/"${sta}"_data/"${sta}.hph
+if [ -s "$ff7" ]; then
+    echo "HPH (higher-mode phase) file exist!"
+    echo disp 1 3 1 $ff0 3 $ff2 5 $ff7 >> $fcontrol #1=Rayleigh; 3 pairs: 1=phase,3=H/V,5=higher-mode phase
+    # ensure in.data has higher-mode flag (line 10) + weight (line 11) so compute_misfit fits it
+    awk 'NR<=9' "$ff5" > "$ff5.tmp"; echo 1 >> "$ff5.tmp"; echo 1.0 >> "$ff5.tmp"; mv "$ff5.tmp" "$ff5"
+else
+    echo disp 1 2 1 $ff0 3 $ff2 >> $fcontrol #1=Rayleigh; 2 pairs: 1=phase,3=H/V
+fi
 echo rf $ff3 $gw >> $fcontrol #rf_file gaussian
 echo Qmodel $ff6 >> $fcontrol
 # echo p 1 >> $fcontrol #only use dispersion info

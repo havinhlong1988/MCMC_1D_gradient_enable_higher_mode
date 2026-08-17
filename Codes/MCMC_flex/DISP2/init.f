@@ -1,6 +1,12 @@
+C====================================================================
+C  MODIFIED 2026-08-14: enable higher-mode surface wave (fund + 1st).
+C    mode default stays 1 (fundamental). FAST_SURF overrides it via its
+C    nmode argument: mode=2 only when a station has higher-mode data
+C    (.hph -> nhpper>0), else mode=1. See modify_to_higher.log (section A).
+C====================================================================
 C--------------------------------------------------------------------
       subroutine init(dx,nlay_deriv,idispr,idispl,cvper,ncvper,
-     * k_max,key_R,key_L) 
+     * k_max,key_R,key_L)
 C--------------------------------------------------------------------
 
 C---------to initialize the program--------------------------
@@ -55,8 +61,7 @@ c       KEY_ATTEN=     .FALSE.
 
 C-------reading of the input model into "ref_files"-----E
 C       mode=k_max-k_min+1
-C       mode=1   ! fundamental only (original)
-        mode=2   ! fundamental + 1st higher mode
+        mode=1   ! default; FAST_SURF overrides via nmode (mode=2 if .hph)
 
 c-------to define an array of periods--------------------------------S
 c        kmax=int((per_max-per_min)/per_step)+1

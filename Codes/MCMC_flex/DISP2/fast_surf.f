@@ -1,9 +1,16 @@
+c====================================================================
+c  MODIFIED 2026-08-14: enable higher-mode surface wave (fund + 1st).
+c    FAST_SURF signature gained 6 output args uR1/uL1/cR1/cL1/rR1/rL1
+c    returning mode 2 (cR(i,2) etc); mode-2 arrays cleared pre/post calcul.
+c    nmode (last arg) sets how many modes calcul computes: caller passes 2
+c    only when the station has .hph data, else 1. See modify_to_higher.log (A).
+c====================================================================
 c-------------------------------------------------------
         subroutine FAST_SURF(n_layer0,kind0,
      &		a_ref0,b_ref0,rho_ref0,d_ref0,qs_ref0,
      &		cvper, ncvper,
      &		uR0,uL0,cR0,cL0,rR0,rL0,
-     &		uR1,uL1,cR1,cL1,rR1,rL1)
+     &		uR1,uL1,cR1,cL1,rR1,rL1,nmode)
 C-------------------------------------------------------
 c       parameter (nsize=1000,nper=200,ndep=20,nmod=1)
 c       parameter (nsize=1000,nper=200,ndep=20,nmod=20)
@@ -20,6 +27,7 @@ c       parameter (nsize=1000,nper=200,ndep=20,nmod=20)
 	logical KEY_EIGEN,KEY_EIG_NORM,KEY_EIGEN_DER1,KEY_EIGEN_DER2,KEY_CINIT
         integer imax(nmod)
 	integer ncvper
+	integer nmode
         
         logical         key_RC, key_RU, key_LC, key_LU, key_R, key_L
         logical         key_water
@@ -122,6 +130,12 @@ c	dx = 2.01799774
      
 	call init(dx,nlay_deriv,idispr,idispl,cvper,ncvper,
      *k_max,key_R,key_L)
+c  override init's default mode with the caller-requested number of modes
+c  (1=fundamental only, 2=fundamental+1st higher). clamp to [1,2] because the
+c  cR/uR/rR(200,2) arrays only hold 2 modes.
+	mode=nmode
+	if (mode.gt.2) mode=2
+	if (mode.lt.1) mode=1
 	ndiv_store=ndiv
 	t1_store=t1
 c        write(*,*) "t11111111",t1,t1_store

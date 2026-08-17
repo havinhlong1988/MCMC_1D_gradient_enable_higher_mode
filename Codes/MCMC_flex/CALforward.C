@@ -1,3 +1,11 @@
+// ====================================================================
+//  MODIFIED 2026-08-14: enable higher-mode surface wave (fund + 1st).
+//    fast_surf_ prototype/alloc/call/free extended with the 6 *1 arrays;
+//    compute_disp appends hpper to the period list and stores the higher
+//    mode cR1 -> disp.hpvel when nhpper>0. Passes nmode=(nhpper>0?2:1) so the
+//    engine only computes the higher mode for stations that have .hph data.
+//    See modify_to_higher.log (section B).
+// ====================================================================
 #include<iostream>
 #include <stdlib.h>
 #include <cmath>
@@ -10,7 +18,7 @@ extern"C"
 void theo_ (int *n,float *fbeta,float *h,float *vps,float *qa,float *qb,float *fs,float *din,float *a0,float *c0,float *t0,int *nd,float *rx);
 //void fast_surf__(int *n_layer0,int *kind0,double *a_ref0,double *b_ref0,double *rho_ref0,double *d_ref0,double *qs_ref0,double *cvper,int *ncvper,double *uR0,double *uL0,double *cR0,double *cL0);
 //void fast_surf_(int *n_layer0,int *kind0,float *a_ref0,float *b_ref0,float *rho_ref0,float *d_ref0,float *qs_ref0,float *cvper,int *ncvper,float *uR0,float *uL0,float *cR0,float *cL0,float *rR0, float *rL0);
-void fast_surf_(int *n_layer0,int *kind0,float *a_ref0,float *b_ref0,float *rho_ref0,float *d_ref0,float *qs_ref0,float *cvper,int *ncvper,float *uR0,float *uL0,float *cR0,float *cL0,float *rR0, float *rL0, float *uR1,float *uL1,float *cR1,float *cL1,float *rR1, float *rL1);
+void fast_surf_(int *n_layer0,int *kind0,float *a_ref0,float *b_ref0,float *rho_ref0,float *d_ref0,float *qs_ref0,float *cvper,int *ncvper,float *uR0,float *uL0,float *cR0,float *cL0,float *rR0, float *rL0, float *uR1,float *uL1,float *cR1,float *cL1,float *rR1, float *rL1, int *nmode);
 }
 /*========CONTENT==========
 int compute_disp(modeldef &model)
@@ -124,8 +132,10 @@ int compute_disp(modeldef &model,int invtype)// WILL BE CHANGED LATER
 void FAST_SURF_(int *n_layer0,int *kind0,double *a_ref0,double *b_ref0,double *rho_ref0,double *d_ref0,double *qs_ref0,double *cvper,int *ncvper,double *uR0,double *uL0,double *cR0,double *cL0);
 */
   int cflag = 2;
+  // compute the 1st higher mode only when this station has higher-mode data
+  int nmode = (model.data.disp.nhpper>0) ? 2 : 1;
   // fprintf(stderr,"now we'll do the fast_surf!!!! with %d elements and %d period\n",nn, nper);
-  fast_surf_(&nn,&cflag,tvp,tvs,trho,tthick, tqs,period,&nper,uR0,uL0,cR0,cL0,rR0,rL0,uR1,uL1,cR1,cL1,rR1,rL1);
+  fast_surf_(&nn,&cflag,tvp,tvs,trho,tthick, tqs,period,&nper,uR0,uL0,cR0,cL0,rR0,rL0,uR1,uL1,cR1,cL1,rR1,rL1,&nmode);
   // fprintf(stderr,"now we finish fast_surf!!!! %d %d %d\n",model.data.disp.npper,model.data.disp.ngper,model.data.disp.neper);
 
   // fprintf(stderr,"now we push phase velocity!!!! %d\n",model.data.disp.npper);

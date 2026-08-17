@@ -1,3 +1,9 @@
+// ====================================================================
+//  MODIFIED 2026-08-14: enable higher-mode surface wave (fund + 1st).
+//    dispdef  gained nhpper/fhphase/phmisfit/hpL + hpper/hpvelo/hpvel/unhpvelo.
+//    indatadef gained hpflag/hpw.
+//    See modify_to_higher.log (section C).
+// ====================================================================
 #include<iostream>
 #include<vector>
 #include<cstdlib>
@@ -82,8 +88,10 @@ struct indatadef{
   // weighting data flag =1: using weight; =0 equal weight use based on the data
   // weight for each data type
 int gvflag,phflag,hvflag,rfflag;
+int hpflag;            // higher-mode phase data present
 int isequalweight;
 double gvw,phw,hvw,rfw;
+double hpw;            // higher-mode phase weight
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
