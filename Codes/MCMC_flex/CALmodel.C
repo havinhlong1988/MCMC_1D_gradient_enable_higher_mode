@@ -1,3 +1,13 @@
+// ====================================================================
+//  MODIFIED 2026-08-14: enable higher-mode surface wave (fund + 1st).
+//    initmodel: init hp* fields.
+//    readdisp1: tflag==5 loads .hph (flag 5 -> keeps 2=group, 3=ellip).
+//    readindata: parse OPTIONAL in.data line 10 (hpflag) & 11 (hpw).
+//    compute_misfit: fold higher-mode phase into the weighted misfit
+//      (tempv1h/phmisfit/hpL/tmfhp, weight hpw, flag ihp).
+//    Also: <1.0 s period filter disabled (commented, re-enableable).
+//    See modify_to_higher.log (sections C, D).
+// ====================================================================
 /*#include<fstream>
 #include<iostream>
 #include<vector>
@@ -143,11 +153,15 @@ int goodmodel(modeldef &model, vector<int> vmono, vector<int> vgrad)
           model.data.disp.gvelo.clear(); 
           model.data.disp.ungvelo.clear();
           //
-          model.data.disp.eper.clear(); 
-          model.data.disp.evelo.clear(); 
+          model.data.disp.eper.clear();
+          model.data.disp.evelo.clear();
           model.data.disp.unevelo.clear();
+          //
+          model.data.disp.hpper.clear();
+          model.data.disp.hpvelo.clear();
+          model.data.disp.unhpvelo.clear();
 
-          // 
+          //
           for (j=0;j<surn;j++) {
              cout<<j<<endl;
              tflag = surflag[j]; 
@@ -210,6 +224,13 @@ int goodmodel(modeldef &model, vector<int> vmono, vector<int> vgrad)
                    model.data.disp.unevelo = cv3;
                    model.data.disp.neper = i;
                    model.data.disp.fellip = 1;
+                   }
+             else if (tflag ==5 ) { // higher-mode (1st) phase velocity
+                   model.data.disp.hpper = cv1;
+                   model.data.disp.hpvelo = cv2;
+                   model.data.disp.unhpvelo = cv3;
+                   model.data.disp.nhpper = i;
+                   model.data.disp.fhphase = 1;
                    }
              else {
                    cout<<"cannot recognize this flag!!!"<<endl; exit(0);
@@ -775,6 +796,7 @@ int goodmodel(modeldef &model, vector<int> vmono, vector<int> vgrad)
     if ( not mff.is_open()) {cout<<"########indata file "<<ifname<<" does not exist!\n exit!!\n";exit (0);}
     kid=0;
     model.indata.gvflag=0; model.indata.phflag=0; model.indata.hvflag=0; model.indata.rfflag=0;
+    model.indata.hpflag=0; model.indata.hpw=0.;  // higher-mode phase (default off; lines 10-11 optional)
     while(getline(mff,line))
 		{
       v.clear();  		
@@ -816,6 +838,14 @@ int goodmodel(modeldef &model, vector<int> vmono, vector<int> vgrad)
       {
         model.indata.rfw=(atof(v[0].c_str()));
       }
+      if (kid==10) // 10th line higher-mode phase flag (optional)
+      {
+        model.indata.hpflag=(atoi(v[0].c_str()));
+      }
+      if (kid==11) // 11th line higher-mode phase weight (optional)
+      {
+        model.indata.hpw=(atof(v[0].c_str()));
+      }
     }
     mff.close();
     fprintf(stderr,"data avaiable phase - group - hv - rf %d %d %d %d\n",model.indata.phflag,model.indata.gvflag,model.indata.hvflag,model.indata.rfflag);
@@ -849,11 +879,12 @@ int goodmodel(modeldef &model, vector<int> vmono, vector<int> vgrad)
     + S2: = tempv2
     */
     int i,j,k;
-    int igv,iph,ihv,irf,nidata=0,nidatadisp=0;
+    int igv,iph,ihv,irf,ihp,nidata=0,nidatadisp=0;
     int isew=1; // Equal weighting flag
-    double phw,gvw,hvw,rfw; // Weighting for each
+    double phw,gvw,hvw,rfw,hpw; // Weighting for each
 	  double tempv1=0.,tempv2=0.,tempv3=0.,tmisfit1,tmisfit2,tS,tL1,tp,td,p,nn;
 	  double tmfe,tmfp,tmfg,Se,Sp,Sg;//EMB add's for misfit of H/V and phase vel
+	  double tmfhp,Sph;//higher-mode (1st) phase velocity misfit / weighted residual
     double deltad[1000],un[1000],S1,S2;
 	  S1 = 0.;
 	  S2 = 0.;
@@ -867,14 +898,16 @@ int goodmodel(modeldef &model, vector<int> vmono, vector<int> vgrad)
     igv=model.indata.gvflag;
     ihv=model.indata.hvflag;
     irf=model.indata.rfflag;
-    nidata=nidata+iph+igv+ihv+irf; //number of avaiable data
-    nidatadisp=nidatadisp+iph+igv+ihv; // number of dispersion data (without RF)
+    ihp=model.indata.hpflag;
+    nidata=nidata+iph+igv+ihv+irf+ihp; //number of avaiable data
+    nidatadisp=nidatadisp+iph+igv+ihv+ihp; // number of dispersion data (without RF)
     // fprintf(stderr,"%d %d\n",model.data.disp.npper,model.data.disp.ngper,model.data.disp.neper);
     isew=model.indata.isequalweight;
     phw=model.indata.phw;
     gvw=model.indata.gvw;
     hvw=model.indata.hvw;
     rfw=model.indata.rfw;
+    hpw=model.indata.hpw;
     // fprintf(stderr,"Weighting flag: %d %f %f %f %f\n",isew,phw,gvw,hvw,rfw);
     // sleep(1);
     
@@ -936,47 +969,69 @@ int goodmodel(modeldef &model, vector<int> vmono, vector<int> vgrad)
       if (tS>30.) tS = sqrt(tS*30);
       model.data.disp.eL=exp(-0.5*tS);
       }
-	  else 
+	  else
     {
       model.data.disp.eL=1.;
       }//if
+    // misfit for Higher-mode (1st) phase velocity ////////////////
+    double tempv1h=0.;
+    for (i=0;i<model.data.disp.nhpper;i++)
+    {
+      tempv1h=tempv1h+pow((model.data.disp.hpvelo[i]-model.data.disp.hpvel[i])/model.data.disp.unhpvelo[i],2);
+    }//for
+    if (tempv1h>0.)
+    {
+      model.data.disp.phmisfit=sqrt(tempv1h/model.data.disp.nhpper);
+      tS=tempv1h;
+      if (tS>30.) tS=sqrt(tS*30.);
+      if (tS>30.) tS=sqrt(tS*30.);
+      model.data.disp.hpL=exp(-0.5*tS);
+    }
+    else
+    {
+      model.data.disp.hpL=1.;
+    }
     //////////////////////////////////////////////////////////////
     // fprintf(stderr,"pL (b0): %g\n",model.data.disp.pL);
     tmisfit1=sqrt(((tempv1*iph)+(tempv2*igv)+(tempv3*ihv))/(model.data.disp.npper+model.data.disp.neper+model.data.disp.ngper)); //original, no gv
     tmfe=sqrt((tempv3*ihv)/model.data.disp.neper);//H/V misfit only
     tmfp=sqrt((tempv1*iph)/model.data.disp.npper);// Vph misfit only
     tmfg=sqrt((tempv2*igv)/model.data.disp.ngper);// Vph misfit only
+    tmfhp=sqrt((tempv1h*ihp)/model.data.disp.nhpper);// higher-mode phase misfit only
 
     if (std::isnan(tmisfit1)) tmisfit1=999.;
     if (std::isnan(tmfp)) tmfp=999.;
     if (std::isnan(tmfg)) tmfg=999.;
     if (std::isnan(tmfe)) tmfe=999.;
+    if (std::isnan(tmfhp)) tmfhp=999.;
 
     
     //tmisfit1=sqrt((tempv1+tempv2+tempv3)/(model.data.disp.npper+model.data.disp.ngper+model.data.disp.neper)); //original, with group velocity
-	  tL1=model.data.disp.gL*model.data.disp.pL*model.data.disp.eL;//likelihood
+	  tL1=model.data.disp.gL*model.data.disp.pL*model.data.disp.eL*model.data.disp.hpL;//likelihood
 
-	  S1 = tempv1 + tempv2 + tempv3;//original,no weights
+	  S1 = tempv1 + tempv2 + tempv3 + tempv1h;//original,no weights
     // S1 = fabs(tempv1) + fabs(tempv2) + fabs(tempv3);// HVL try absolute values only
     Sp=tempv1;//phase velocity
     Sg=tempv2;//group velocity
     Se=tempv3;//ellipticity
+    Sph=tempv1h;//higher-mode (1st) phase velocity
     //
     if (std::isnan(S1)) S1=999.;
     if (std::isnan(Sp)) Sp=999.;
     if (std::isnan(Sg)) Sg=999.;
     if (std::isnan(Se)) Se=999.;
+    if (std::isnan(Sph)) Sph=999.;
     //
 	  model.data.disp.L=tL1;//not terribly important, model.data.L calculated below
 	  // model.data.disp.misfit=(0.667)*tmfe+(0.333)*tmfp;//EMB edit for weighted misfit
     // model.data.disp.misfit=(1.0*tmfp);//HVL edit for Vph misfit only
     if (isew==0)
     {
-      model.data.disp.misfit=((phw*tmfp))+((gvw*tmfg))+((hvw*tmfe));//HVL edit for misfit based on data avaiable
+      model.data.disp.misfit=((phw*tmfp))+((gvw*tmfg))+((hvw*tmfe))+((hpw*tmfhp));//HVL edit for misfit based on data avaiable
     }
     else
     {
-      model.data.disp.misfit=((phw*tmfp/(phw+gvw+hvw)))+((gvw*tmfg/(phw+gvw+hvw)))+((hvw*tmfe/(phw+gvw+hvw)));//HVL edit for misfit based on given weight
+      model.data.disp.misfit=((phw*tmfp/(phw+gvw+hvw+hpw)))+((gvw*tmfg/(phw+gvw+hvw+hpw)))+((hvw*tmfe/(phw+gvw+hvw+hpw)))+((hpw*tmfhp/(phw+gvw+hvw+hpw)));//HVL edit for misfit based on given weight
     }
     
 	  // model.data.disp.misfit=(0.1)*tmfe+(0.9)*tmfp;
@@ -1101,11 +1156,11 @@ int goodmodel(modeldef &model, vector<int> vmono, vector<int> vgrad)
     // tS = 0.5*((1.0*Sp)); 
     if (isew==0)
     {
-      tS = 0.5*((hvw*Se)+(phw*Sp)+(gvw*Sg)+(rfw*S2)); // HVL none-equal weighting and based on data avaiable
-    } 
+      tS = 0.5*((hvw*Se)+(phw*Sp)+(gvw*Sg)+(rfw*S2)+(hpw*Sph)); // HVL none-equal weighting and based on data avaiable
+    }
     else
     {
-      tS = 0.5*((hvw*Se/(phw+gvw+hvw+rfw))+(phw*Sp/(phw+gvw+hvw+rfw))+(gvw*Sg/(phw+gvw+hvw+rfw))+(rfw*S2/(phw+gvw+hvw+rfw))); // HVL equal weighting and based on data avaiable
+      tS = 0.5*((hvw*Se/(phw+gvw+hvw+rfw+hpw))+(phw*Sp/(phw+gvw+hvw+rfw+hpw))+(gvw*Sg/(phw+gvw+hvw+rfw+hpw))+(rfw*S2/(phw+gvw+hvw+rfw+hpw))+(hpw*Sph/(phw+gvw+hvw+rfw+hpw))); // HVL equal weighting and based on data avaiable
     }
     // tS = 0.5*((0.6*Sp)+(0.2*Se)+(0.2*S2)); // HVL edited, non-Vph
     // while (tS>50.)tS=sqrt(tS*30);
@@ -1122,16 +1177,16 @@ int goodmodel(modeldef &model, vector<int> vmono, vector<int> vgrad)
     // model.data.misfit=(0.5*tmfe)+(0.5*tmisfit2);//EMB edited for non-equal weighting
     if (isew==0)
     {
-      model.data.misfit=(phw*tmfp)+(hvw*tmfe)+(gvw*tmfg)+(rfw*tmisfit2);// HVL none-equal weighting and based on data avaiable
+      model.data.misfit=(phw*tmfp)+(hvw*tmfe)+(gvw*tmfg)+(rfw*tmisfit2)+(hpw*tmfhp);// HVL none-equal weighting and based on data avaiable
     }
     else
     {
-      if (abs(phw+gvw+hvw+rfw-1) > 1e-3)
+      if (abs(phw+gvw+hvw+rfw+hpw-1) > 1e-3)
       {
         fprintf(stderr,"Total weighting less than 1, stop!");
         exit(EXIT_FAILURE);
       }
-      model.data.misfit=(phw*tmfp/(phw+gvw+hvw+rfw))+(hvw*tmfe/(phw+gvw+hvw+rfw))+(gvw*tmfg/(phw+gvw+hvw+rfw))+(rfw*tmisfit2/(phw+gvw+hvw+rfw));// HVL equal weighting and based on data avaiable
+      model.data.misfit=(phw*tmfp/(phw+gvw+hvw+rfw+hpw))+(hvw*tmfe/(phw+gvw+hvw+rfw+hpw))+(gvw*tmfg/(phw+gvw+hvw+rfw+hpw))+(rfw*tmisfit2/(phw+gvw+hvw+rfw+hpw))+(hpw*tmfhp/(phw+gvw+hvw+rfw+hpw));// HVL equal weighting and based on data avaiable
     }
     
     // model.data.misfit=(0.34*tmfp)+(0.33*tmfe)+(0.33*tmisfit2);// HVL more weight for Vph and RF
@@ -1157,6 +1212,7 @@ int goodmodel(modeldef &model, vector<int> vmono, vector<int> vgrad)
 
 	  char namerf[300],namedispp[300],namedispg[300],namemod[300];
     char namemod1[300],namedispe[300],nameinfo[300],namemod2[300];
+    char namedisphp[300];
 	  FILE *ff;
 	  int i,j,k,nlayer;
 	  double dep=0.;
@@ -1164,6 +1220,7 @@ int goodmodel(modeldef &model, vector<int> vmono, vector<int> vgrad)
 	  sprintf(namedispp,"%s/%s.p.disp",outdir,name);
 	  sprintf(namedispg,"%s/%s.g.disp",outdir,name);
 	  sprintf(namedispe,"%s/%s.e.disp",outdir,name);
+	  sprintf(namedisphp,"%s/%s.hp.disp",outdir,name); // higher-mode (1st) phase
 	  sprintf(namemod,"%s/%s.mod",outdir,name);
 	  sprintf(namemod1,"%s/%s.mod.q",outdir,name);
     sprintf(namemod2,"%s/%s.mod.group",outdir,name); // similar input model for mat
@@ -1193,6 +1250,7 @@ int goodmodel(modeldef &model, vector<int> vmono, vector<int> vgrad)
 	  if (model.data.disp.npper>0) fprintf(ff,"# PHASE %lf %lf\n",model.data.disp.pmisfit,model.data.disp.pL);
 	  if (model.data.disp.ngper>0) fprintf(ff,"# GROUP %lf %lf\n",model.data.disp.gmisfit,model.data.disp.gL);
 	  if (model.data.disp.neper>0) fprintf(ff,"# ELLIP %lf %lf\n",model.data.disp.emisfit,model.data.disp.eL);
+	  if (model.data.disp.nhpper>0) fprintf(ff,"# HMODE %lf %lf\n",model.data.disp.phmisfit,model.data.disp.hpL);
 	  if (model.data.rf.nrfo>0) fprintf(ff,"# RF %lf %lf\n",model.data.rf.misfit,model.data.rf.L);
 	  fclose(ff);
 
@@ -1228,13 +1286,23 @@ int goodmodel(modeldef &model, vector<int> vmono, vector<int> vgrad)
 	  fclose(ff);
 	  }//if
           //cout<<"neper: "<<model.data.disp.neper<<endl;
-          if (model.data.disp.neper>0) 
+          if (model.data.disp.neper>0)
             {
             ff=fopen(namedispe,"w");
             for(i=0;i<model.data.disp.neper;i++)                {
                if(model.data.disp.evel.size()>0)
-                  fprintf(ff,"%g %g %g %g\n",model.data.disp.eper[i],model.data.disp.evel[i],model.data.disp.evelo[i],model.data.disp.unevelo[i]);                
-               }//fori  
+                  fprintf(ff,"%g %g %g %g\n",model.data.disp.eper[i],model.data.disp.evel[i],model.data.disp.evelo[i],model.data.disp.unevelo[i]);
+               }//fori
+            fclose(ff);
+            }
+          // higher-mode (1st) phase velocity: per  pred  obs  unc
+          if (model.data.disp.nhpper>0)
+            {
+            ff=fopen(namedisphp,"w");
+            for(i=0;i<model.data.disp.nhpper;i++)                {
+               if(model.data.disp.hpvel.size()>0)
+                  fprintf(ff,"%g %g %g %g\n",model.data.disp.hpper[i],model.data.disp.hpvel[i],model.data.disp.hpvelo[i],model.data.disp.unhpvelo[i]);
+               }//fori
             fclose(ff);
             }
 
