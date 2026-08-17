@@ -1,0 +1,6 @@
+ >> output_00990_tmp.txt exist! verifying the check point 1
+ >> Run the do_MC_Para for the 1 th time!
+ >> output_00990_tmp.txt exist! verifying the check point 1
+ >>> String match, move forward!
+Run the do_MC_Para_post_process_v3 for the first time!
+post process finish checkpoint matched!

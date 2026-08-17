@@ -1,6 +1,6 @@
 model /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/data/00740_data/mod.00740
 para /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/data/00740_data/in.para_00740
-disp 1 2 1 /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/data/00740_data/00740.ph 3 /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/MonteCarlo/indata/in.hv
+disp 1 3 1 /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/data/00740_data/00740.ph 3 /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/MonteCarlo/indata/in.hv 5 /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/data/00740_data/00740.hph
 rf /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/MonteCarlo/indata/in.rf 2.5
 Qmodel /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/MonteCarlo/indata/Qmodel.dat
 p 1
