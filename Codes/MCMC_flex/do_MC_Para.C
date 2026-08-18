@@ -192,7 +192,7 @@ int main( int argc, char *argv[])
   fclose(ff0);
 
   sprintf(wmodelname1,"%s/Initial.ph",outdir);
-  
+
   ff0=fopen(wmodelname1,"w");
   if (model.data.disp.pper.size() >0) {
       for (i=0;i<model.data.disp.pper.size();i++){
@@ -202,9 +202,19 @@ int main( int argc, char *argv[])
       //   fprintf(ff0," %g",model.data.disp.pvel[i]);//only need period and ellipticity
       //   //fprintf(ff0,"%g %g %g %g\n",tmodel.data.disp.eper[j],tmodel.data.disp.evel[j],tmodel.data.disp.evelo[j],tmodel.data.disp.unevelo[j]);
       //   }
-      
+
         // fprintf(ff0,"\n");
-    }  
+    }
+  fclose(ff0);
+
+  // starting model's 1st higher-mode phase velocity (for the "Starting HMode" curve)
+  sprintf(wmodelname1,"%s/Initial.hp",outdir);
+  ff0=fopen(wmodelname1,"w");
+  if (model.data.disp.hpper.size() > 0) {
+      for (i=0;i<model.data.disp.hpper.size();i++){
+        fprintf(ff0," %g %g \n",model.data.disp.hpper[i],model.data.disp.hpvel[i]);
+      }
+    }
   fclose(ff0);
 //End of EMB adds to output initial model's forward model result
     fprintf(stderr,"Calculate right and left bound\n");

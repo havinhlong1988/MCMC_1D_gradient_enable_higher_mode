@@ -463,6 +463,7 @@ def build_paths(sta, mdir, pwd):
         "mod_q_file": os.path.join(sta_dir, "MC.{}.mod.q".format(sta)),
         "startfileph": os.path.join(sta_dir, "Initial.ph"),
         "startfilehv": os.path.join(sta_dir, "Initial.hv"),
+        "startfilehp": os.path.join(sta_dir, "Initial.hp"),
         "startfilerf": os.path.join(sta_dir, "Initial.rf"),
         "avemod_file": os.path.join(sta_dir, "MC.{}.ave.mod".format(sta)),
         "accavg_info": os.path.join(sta_dir, "MC.{}.acc.average.info".format(sta)),
@@ -478,6 +479,10 @@ def build_paths(sta, mdir, pwd):
         "minmisfit_p_disp": os.path.join(sta_dir, "MC.{}.minmisfit.p.disp".format(sta)),
         "minmisfit_e_disp": os.path.join(sta_dir, "MC.{}.minmisfit.e.disp".format(sta)),
         "minmisfit_rf": os.path.join(sta_dir, "MC.{}.minmisfit.rf".format(sta)),
+        # higher-mode (1st) phase velocity: ensemble + acc.average + minmisfit
+        "posteriorfilehp": os.path.join(sta_dir, "MC.{}.all.hp".format(sta)),
+        "accavg_hp_disp": os.path.join(sta_dir, "MC.{}.acc.average.hp.disp".format(sta)),
+        "minmisfit_hp_disp": os.path.join(sta_dir, "MC.{}.minmisfit.hp.disp".format(sta)),
         "out_main_png": os.path.join(sta_dir, "{}_MCMC.png".format(sta)),
         "out_misfit_png": os.path.join(sta_dir, "{}_IterVsMisfit.png".format(sta)),
         "out_avg_txt": "{}_Vsv_average.txt".format(sta),
@@ -572,6 +577,56 @@ def main():
         paths["posteriorfileph"],
         usecols=range(countper_ph + 2, len(open(paths["posteriorfileph"]).readline().split()))
     )
+
+    # -------------------------------------------------------------------------
+    # Higher-mode (1st) phase velocity  -- optional, only if .hph was inverted.
+    # all.hp rows:  M idx  <N periods>  <N hpvel>
+    # -------------------------------------------------------------------------
+    hp_present = (os.path.exists(paths["posteriorfilehp"])
+                  and os.path.getsize(paths["posteriorfilehp"]) > 0)
+    hp_periods = None
+    hp_curves = None
+    hp_avg = None     # (per, pred) acc.average model
+    hp_min = None     # (per, pred) minmisfit model
+    hp_obs = None     # (per, obs, unc) observed higher-mode data
+    hp_start = None   # (per, pred) starting model
+    if hp_present:
+        _rows = []
+        with open(paths["posteriorfilehp"]) as _fh:
+            for _line in _fh:
+                _t = _line.split()
+                if len(_t) < 4:
+                    continue
+                _v = [float(x) for x in _t[2:]]   # skip 'M' and model index
+                _n = len(_v) // 2
+                if _n == 0:
+                    continue
+                hp_periods = _v[:_n]
+                _rows.append(_v[_n:])
+        if _rows:
+            hp_periods = np.array(hp_periods)
+            hp_curves = np.array(_rows)
+        else:
+            hp_present = False
+    if hp_present:
+        try:
+            _a = np.atleast_2d(np.loadtxt(paths["accavg_hp_disp"]))
+            hp_avg = (_a[:, 0], _a[:, 1])
+            hp_obs = (_a[:, 0], _a[:, 2], _a[:, 3])
+        except Exception:
+            pass
+        try:
+            _m = np.atleast_2d(np.loadtxt(paths["minmisfit_hp_disp"]))
+            hp_min = (_m[:, 0], _m[:, 1])
+        except Exception:
+            pass
+        try:
+            if (os.path.exists(paths["startfilehp"])
+                    and os.path.getsize(paths["startfilehp"]) > 0):
+                _s = np.atleast_2d(np.loadtxt(paths["startfilehp"]))
+                hp_start = (_s[:, 0], _s[:, 1])
+        except Exception:
+            pass
 
     inhvdata = pd.read_csv(paths["hvdataprintfile"], delim_whitespace=True, names=["per", "vel"])
     countper_e, posterioreper = read_posterior_periods(
@@ -880,12 +935,42 @@ def main():
         ax3.plot(mincper, mincpf, "bs", lw=1, ms=6, label="Minmisfit Vph", zorder=7, mec="k")
         ax3.plot(mcper0, mcpo0, "wo", lw=1, ms=6, label="Final Vph", zorder=7, mec="k")
 
+    # ---- Higher mode (1st) overlaid on the SAME panel ----
+    #   markers use the SAME colours as the fundamental (only the marker differs):
+    #   data=black diamond, minmisfit=blue down-triangle, final=white diamond,
+    #   starting=red star.  The POSTERIOR is a FILLED magenta band (CNan style);
+    #   the fundamental posterior stays gray (unchanged).
+    if hp_present:
+        if hp_curves is not None:
+            _order = np.argsort(hp_periods)
+            _lo = np.percentile(hp_curves, 2, axis=0)[_order]
+            _hi = np.percentile(hp_curves, 98, axis=0)[_order]
+            ax3.fill_between(np.asarray(hp_periods)[_order], _lo, _hi,
+                             color="magenta", alpha=0.30, lw=0, zorder=3,
+                             label="Posterior HMode")
+        if hp_obs is not None:
+            ax3.errorbar(hp_obs[0], hp_obs[1], yerr=hp_obs[2], fmt="D", color="k",
+                         ecolor="k", ms=7, elinewidth=1.5, capthick=1.5,
+                         label="Data HMode", zorder=6)
+        if hp_min is not None:
+            ax3.plot(hp_min[0], hp_min[1], "v", color="b", ms=9,
+                     label="Minmisfit HMode", zorder=7, mec="k")
+        if hp_avg is not None:
+            ax3.plot(hp_avg[0], hp_avg[1], marker="D", mfc="w", mec="k", ms=8,
+                     ls="none", label="Final HMode", zorder=7)
+        if hp_start is not None:
+            ax3.plot(hp_start[0], hp_start[1], "*", color="r", ms=13,
+                     label="Starting HMode", zorder=5)
+
     ax3.plot(fcheckper, fcheckRC, "r^", label="Starting Vph", ms=10, zorder=5)
-    ax3.legend(loc="best", fontsize=15)
+    ax3.legend(loc="best", fontsize=12, ncol=2)
     ax3.set_xlabel("Period (s)", fontdict=FONT_LABEL)
     ax3.set_ylabel("Vph (km/s)", fontdict=FONT_LABEL)
     ax3.set_ylim(PH_YLIM)
-    ax3.set_xlim([posteriorphper[0] - 0.5, posteriorphper[-1] + 0.5])
+    _xmax = posteriorphper[-1]
+    if hp_present and hp_periods is not None and len(hp_periods) > 0:
+        _xmax = max(_xmax, float(np.max(hp_periods)))
+    ax3.set_xlim([posteriorphper[0] - 0.5, _xmax + 0.5])
     ax3.grid(color="k", axis="both", linestyle="-", linewidth=2, alpha=0.1, zorder=2)
     ax3.tick_params(labelsize=20)
     ax3.yaxis.tick_right()

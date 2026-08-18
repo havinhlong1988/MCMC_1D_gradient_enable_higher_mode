@@ -136,8 +136,10 @@ if ! test -f "$sta/$output_file_2"; then
     # sh do_one_wtVphHV__4pt9kms_posCrustToMantle_1MsplineLT2Mspline.sh ${sta} 3000 18 > 'output_'$sta'_tmp.txt'
 else
     python ../../AnalyzeResult/inversion_plot_vfinal_flex.py ${sta} .
+    # zoom-in Vph fit (fundamental + higher mode) with posterior background
+    python ../../AnalyzeResult/plot_hpmode_check.py ${sta} . || true
 fi
-# 
+#
     echo "-------------------------------------"
     echo "MCMC process finished for the station $sta !!!"
     echo "-------------------------------------"

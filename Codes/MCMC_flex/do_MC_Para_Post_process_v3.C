@@ -1700,9 +1700,26 @@ double dep;
       for (j=0;j<tmodel.data.disp.pper.size();j++) {
         fprintf(ff0," %g",tmodel.data.disp.pvel[j]);
         }
-      } 
+      }
         fprintf(ff0,"\n");
-    } 
+    }
+  fclose(ff0);
+  // higher-mode (1st) phase-velocity posterior ensemble (same format as all.ph)
+  sprintf(minname,"%s/%s.all.hp",outdir,wmodelname1);
+  ff0 = fopen(minname,"w");
+  for (i=0;i<models2.size();i++) {
+    tmodel = models2[i];
+    if (tmodel.data.disp.hpper.size() > 0) {
+      fprintf(ff0,"M %d",i);
+      for (j=0;j<tmodel.data.disp.hpper.size();j++) {
+        fprintf(ff0," %g",tmodel.data.disp.hpper[j]);
+        }
+      for (j=0;j<tmodel.data.disp.hpper.size();j++) {
+        fprintf(ff0," %g",tmodel.data.disp.hpvel[j]);
+        }
+      }
+        fprintf(ff0,"\n");
+    }
   fclose(ff0);
   //  ===================================================================================
   // Do it again - dont know why if add the loop, can not write data into text file
