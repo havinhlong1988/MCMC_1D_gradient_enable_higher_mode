@@ -9,18 +9,27 @@ How to set up the environment and build the code on a fresh machine. See
 
 | Component | Documented (original) | Verified working here | Notes |
 |---|---|---|---|
-| OS | Linux (RHEL) | Ubuntu 24.04 (Linux 6.17) | macOS untested for the *build*; fine for Python-only analysis |
-| Python | 3.7.6 | 3.7.6 | scripts call `python` (not `python3`) |
-| numpy | 1.18.1 | 1.18.1 | `np.float` used in setup → needs numpy < 1.24 |
-| pandas | 1.0.1 | 1.0.1 | `read_csv(delim_whitespace=...)` → needs pandas < 3.0 |
-| matplotlib | (any) | 3.4.3 | plotting only |
-| C++ compiler | g++ 4.8.5 | system g++ 13.3 | needs `-std=c++0x`; see fixes in CHECKPOINT.md |
-| Fortran compiler | gfortran 4.8.5 | conda gfortran 15.2 | builds DISP2/ + RF/ objects |
+| OS | Linux (RHEL) | Ubuntu 24.04 (Linux 6.17) + macOS 15 (arm64) | macOS build **verified working** — see §4 |
+| Python | 3.7.6 | 3.7.6 and 3.13.12 | scripts call `python` (not `python3`) — must be on PATH |
+| numpy | 1.18.1 | 1.18.1 and 2.4.6 | any version — `np.float` removed from the code |
+| pandas | 1.0.1 | 1.0.1 and 3.0.3 | any version — `delim_whitespace` removed from the code |
+| matplotlib | (any) | 3.4.3 and 3.10.8 | plotting only |
+| C++ compiler | g++ 4.8.5 | g++ 13.3 (Linux), g++-15 (macOS/brew) | needs `-std=c++0x`; see fixes in CHECKPOINT.md |
+| Fortran compiler | gfortran 4.8.5 | conda gfortran 15.2 (Linux), gfortran-15 (macOS/brew) | builds DISP2/ + RF/ objects |
 | Boost | 1.55 | 1.55 (bundled) | headers vendored in `Codes/boost-1.55.0-gcc630/` — no separate install |
 
-The pinned Python stack matters: the setup code uses APIs removed in modern
-numpy/pandas (`np.float`, `delim_whitespace`). Do **not** substitute newer
-versions without patching the code.
+**The Python code now runs on both the old and the modern stack.** It
+previously used APIs removed in newer releases; these have been replaced with
+spellings that are valid in *every* version, so the pinned env is no longer
+mandatory (it is still the reference for byte-exact reproduction):
+
+| Was | Now | Why |
+|---|---|---|
+| `np.float(x)` | `float(x)` | `np.float` was only an alias for the builtin; removed in numpy 1.24. NumPy's own advice is to use `float`. |
+| `delim_whitespace=True` | `sep=r"\s+"` | Removed in pandas 3.0; `sep=r"\s+"` is the documented replacement and works back to pandas 0.x. |
+
+Verified running on macOS with numpy 2.4 / pandas 3.0 / matplotlib 3.10 as well
+as on the pinned 1.18/1.0.1 stack.
 
 ---
 
@@ -84,10 +93,61 @@ this repo (missing `return` statements, `#include <random>` in
   conda activate MCMC
   conda config --env --set subdir osx-64
   ```
-- **Building the C++/Fortran on macOS is untested.** The Makefile assumes GNU
-  tooling and a conda `libgfortran` layout; on macOS you'd use clang++ + a
-  gfortran from conda/brew and likely adjust `LDLIBS`/rpath. Recommended:
-  keep the build + inversion runs on the Linux box; use macOS for analysis.
+- **Building the C++/Fortran on macOS now works** (verified on Apple Silicon:
+  builds clean and runs a full inversion). Requirements:
+  ```bash
+  brew install gcc          # provides g++-15 / gfortran-15
+  ```
+  Apple's `g++` is clang, which has **no OpenMP and no libgfortran**, so the
+  `Makefile` auto-switches to the Homebrew GNU toolchain on Darwin and sets an
+  rpath to `$(brew --prefix gcc)/lib/gcc/current` — the binaries then run with
+  no `DYLD_LIBRARY_PATH` and no conda env. Override the compiler version with
+  `make CC=g++-14 FC=gfortran-14` if yours differs.
+- **macOS COMMON-block fix (automatic).** `DISP2/fast_surf.f` declares
+  `nper=200` and `calcul.f` declares `ndep=20`, while `init.f`/`surfa.f` declare
+  `nper=2000`/`ndep=100` for the *same* COMMON blocks. GNU ld sizes a common
+  block to the **largest** definition (harmless on Linux); the macOS Mach-O
+  linker takes the **smallest**, so writes land outside the block and the run
+  dies with `Bus error: 10`. The Makefile generates normalised copies under
+  `macbuild/` and compiles those. **The repo sources are left untouched**, so
+  the CentOS build uses exactly the same files as before.
+
+---
+
+## 4b. Moving the code between macOS and CentOS (avoiding conflicts)
+
+**The rule: ship source, never compiled objects.**
+
+The `.o` objects and the `do_MC_Para*` binaries are architecture-specific —
+CentOS builds ELF x86-64, macOS builds Mach-O arm64. They used to be
+**committed to git**, which caused two failures when hopping between machines:
+
+1. Every switch rewrote them, and git cannot merge binaries → conflicts on
+   every pull.
+2. A CentOS checkout could receive macOS objects. Because git sets checkout
+   timestamps, `make` often considers them newer than the `.f` sources and
+   **skips rebuilding**, so the link fails with `unknown file type` /
+   incompatible-format errors.
+
+They are now **untracked and git-ignored**, and are rebuilt on each machine from
+the tracked `.f`/`.C` sources. Nothing platform-specific travels with the repo,
+so a plain `git pull` on CentOS is safe.
+
+If you move the folder by **copy/rsync instead of git**, clear the artifacts
+first so the other machine cannot reuse them:
+
+```bash
+cd Codes/MCMC_flex && make clean && make clean-fortran
+```
+
+`make clean-fortran` also removes the generated `macbuild/` directory. On the
+destination machine just rebuild (§3); `02_do_MCMC.sh` also offers to recompile
+when you answer `y` at its prompt.
+
+> Note: the Linux branch of the Makefile links against `$(CONDA_PREFIX)/lib` and
+> falls back to `$HOME/anaconda3/envs/MCMC`. On CentOS, `conda activate MCMC`
+> before building, or pass the right path:
+> `make CONDA_PREFIX=/path/to/envs/MCMC do_MC_Para`.
 
 ---
 

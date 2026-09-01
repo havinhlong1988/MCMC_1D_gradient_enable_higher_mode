@@ -29,7 +29,7 @@ def setup(stadata,Vel_dir,src_dir,query_sub,data_sub,in_sub):
         # print("<< ",modfile)
     # Now read the model data 
     if os.path.exists(modfile):
-        mod_data = pd.read_csv(modfile,delim_whitespace=True, na_values=0,names=["dep","vs",'vp'])
+        mod_data = pd.read_csv(modfile,sep=r"\s+", na_values=0,names=["dep","vs",'vp'])
         mod_data = mod_data.fillna(0); 
     else:
         print(f"file {modfile} does not exist!")
@@ -157,7 +157,7 @@ def setup(stadata,Vel_dir,src_dir,query_sub,data_sub,in_sub):
                 locals()['inparacrustsubthick%s' % x] = np.append(parameters.crust_sub_thick,[CrustLayerId, str(x)]); 
         
     # Crust thickness calculation
-    pertRangCrustThick=np.round((np.float(parameters.PertRangeCrustThick)*crustthick/100),2)
+    pertRangCrustThick=np.round((float(parameters.PertRangeCrustThick)*crustthick/100),2)
     # print("pertRangCrustThick: ", pertRangCrustThick)
     if np.isnan(pertRangCrustThick):
         print('error!!!! percpert to pertRangCrustThick')

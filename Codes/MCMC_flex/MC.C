@@ -531,7 +531,15 @@ int do_prior(FILE *outf, paradef &para0, modeldef &model0,  \
          }
      */
      sprintf(wmodelname2,"%s.%d",wmodelname1,iaccp);
-     #pragma omp critical(write_model_2) 
+     // RACE FIX: this push_back must take the SAME critical as the other
+     // paras.push_back() above (write_para_p3). OpenMP named criticals are
+     // independent mutexes, so guarding the two writes to the shared
+     // std::vector `paras` under DIFFERENT names allowed two threads to push
+     // concurrently -> vector reallocation race -> heap corruption ->
+     // intermittent "Bus error: 10" / "Segmentation fault: 11" inside
+     // pthread_mutex_lock. No deadlock: the other site takes only this lock;
+     // this site takes updateflag -> write_model_1 -> write_para_p3 (no cycle).
+     #pragma omp critical(write_para_p3) 
        {
        //write_bin(model,outbin,para1,iac,iiter,iaccp,0);
        paras.push_back(para1);

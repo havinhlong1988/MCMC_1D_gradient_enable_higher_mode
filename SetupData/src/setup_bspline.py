@@ -29,7 +29,7 @@ def setup(stadata,Vel_dir,src_dir,query_sub,data_sub,in_sub):
         # print("<< ",modfile)
     # Now read the model data 
     if os.path.exists(modfile):
-        mod_data = pd.read_csv(modfile,delim_whitespace=True, na_values=0,names=["dep","vs",'vp'])
+        mod_data = pd.read_csv(modfile,sep=r"\s+", na_values=0,names=["dep","vs",'vp'])
         mod_data = mod_data.fillna(0); 
     else:
         print("file %s does not exist!",mod_data)

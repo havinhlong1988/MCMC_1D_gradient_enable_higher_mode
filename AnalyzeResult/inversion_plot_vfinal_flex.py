@@ -291,7 +291,7 @@ def read_posterior_periods(firstline_file, nobs_file):
     vals = firstline.split()
     vals = [float(v) for v in vals[2:]]
 
-    indata = pd.read_csv(nobs_file, delim_whitespace=True, names=["per", "vel"])
+    indata = pd.read_csv(nobs_file, sep=r"\s+", names=["per", "vel"])
 
     tmp = 0.0
     countper = 0
@@ -538,8 +538,12 @@ def main():
     # -------------------------------------------------------------------------
     # Read initial / input models
     # -------------------------------------------------------------------------
+    # NOTE: the 1D input velocity model in Vel_mod/ has 3 columns (dep vs vp).
+    # usecols=[0,1,7] here was copy-pasted from the Initial*.mod reads below
+    # (those files really do have 8 columns); column 7 does not exist in the
+    # velocity model, so newer pandas raises "usecols out-of-bounds".
     inputmodel0 = pd.read_csv(
-        paths["velmodfile"], sep=r"\s+", usecols=[0, 1, 7],
+        paths["velmodfile"], sep=r"\s+", usecols=[0, 1, 2],
         names=["dep", "vs", "vp"], header=None
     )
     inputmodel = pd.read_csv(
@@ -628,7 +632,7 @@ def main():
         except Exception:
             pass
 
-    inhvdata = pd.read_csv(paths["hvdataprintfile"], delim_whitespace=True, names=["per", "vel"])
+    inhvdata = pd.read_csv(paths["hvdataprintfile"], sep=r"\s+", names=["per", "vel"])
     countper_e, posterioreper = read_posterior_periods(
         paths["posteriorfilee"], paths["hvdataprintfile"]
     )
@@ -821,7 +825,14 @@ def main():
         )
 
     ax1.plot(minvsnew, mindepthnew, "bs--", lw=2, ms=10, label="MinMisfit Vs", zorder=7, mec="k")
-    ax1.plot(avgvsnew, avgdepthnew, "mo--", mfc="w", lw=2, ms=10, label="Final Vs", zorder=7, mec="k")
+    ax1.plot(avgvsnew, avgdepthnew, "mo--", mfc="w", lw=2, ms=10, label="Final Vs (depth-mean)", zorder=7, mec="k")
+    # MC.*.acc.average.mod = model built from the AVERAGED PARAMETERS.
+    # Its forward prediction is what the dispersion panel draws as
+    # "Final Vph"/"Final HMode".  It is NOT the same model as the
+    # depth-mean curve above (they differ by up to ~1 km/s), so it is
+    # drawn here for comparison.
+    ax1.plot(avgvsf, avgdepthf, "-", color="deepskyblue", lw=2.5,
+             zorder=6, label="Avg-param Vs (drives Final Vph)")
     ax1.errorbar(avgvsnew, avgdepthnew, xerr=avgnewstd, fmt="-o", ecolor="m", elinewidth=2, capsize=4, alpha=1.0)
     # Model spacing plot 
     # split crust / mantle
@@ -903,7 +914,14 @@ def main():
 
     ax4.plot(minvsnew, mindepthnew, "bs--", lw=2, ms=10, label="MinMisfit Vs", zorder=7, mec="k")
 
-    ax4.plot(avgvsnew, avgdepthnew, "mo--", mfc="w", lw=2, ms=10, label="Final Vs", zorder=7, mec="k")
+    ax4.plot(avgvsnew, avgdepthnew, "mo--", mfc="w", lw=2, ms=10, label="Final Vs (depth-mean)", zorder=7, mec="k")
+    # MC.*.acc.average.mod = model built from the AVERAGED PARAMETERS.
+    # Its forward prediction is what the dispersion panel draws as
+    # "Final Vph"/"Final HMode".  It is NOT the same model as the
+    # depth-mean curve above (they differ by up to ~1 km/s), so it is
+    # drawn here for comparison.
+    ax4.plot(avgvsf, avgdepthf, "-", color="deepskyblue", lw=2.5,
+             zorder=6, label="Avg-param Vs (drives Final Vph)")
     ax4.errorbar(avgvsnew, avgdepthnew, xerr=avgnewstd, fmt="-o", ecolor="m", elinewidth=2, capsize=4, alpha=1.0)
     ax4.plot(inputmodel["vs"], inputmodel["dep"], "r^-", lw=2.5, ms=10, label="Start Vs")
 

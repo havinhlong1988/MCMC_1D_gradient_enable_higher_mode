@@ -33,7 +33,7 @@ def main():
     src_dir = os.path.join(src_dir, 'src')
     #----------------------------------------------------------------------------------------------------
     # ----- Read the station list to build the model and data for each station ----------------
-    sta_data = pd.read_csv(stafile,delim_whitespace=True, na_values=0,names=["name","long","lat","elv"])
+    sta_data = pd.read_csv(stafile,sep=r"\s+", na_values=0,names=["name","long","lat","elv"])
     # sta_data['name'] = sta_data['name'].apply( lambda x: f"{x:05d}"); 
     # sta_data['name'] = sta_data['name'].astype(str)
    # force to string safely (handles numbers, NaN)

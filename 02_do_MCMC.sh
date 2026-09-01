@@ -1,4 +1,23 @@
 #!/bin/bash
+
+# ---------------------------------------------------------------------------
+# OpenMP worker-thread stack size.
+#
+# The Fortran forward model (DISP2/surfa.f) declares large LOCAL arrays -- e.g.
+# eight  dimension yy1(nsize,5)..yz4(nsize,5)  plus many nsize=1000 arrays --
+# which live on the stack of whichever thread runs them.
+#
+# Linux gives secondary threads an 8 MB stack, so this always fit on CentOS.
+# macOS gives them only 512 KB, so the deeper forward-model paths overflow and
+# the run dies with an intermittent "Segmentation fault: 11" / "Bus error: 10"
+# (it depends on the data, which is why some stations run fine and others do
+# not). Verified: 256K -> SIGBUS immediately, default -> SIGSEGV, 64M -> stable.
+#
+# Setting this is harmless on Linux (the stack is virtual and committed lazily),
+# so the same script works unchanged on CentOS.
+# ---------------------------------------------------------------------------
+export OMP_STACKSIZE=64M
+
 # -------------------- Run setup the data ---------------------------------------
 # cd SetupData/
 # python setup_VN.py
