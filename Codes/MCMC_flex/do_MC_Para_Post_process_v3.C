@@ -422,6 +422,16 @@ int main( int argc, char *argv[])
     }
 
   cout<<"read all information ok!"<<endl;
+
+  // BUGFIX: create the output directory HERE, before anything writes into it.
+  // write_paras0() at ~line 450 does fopen("<outdir>/...","w") but the mkdir
+  // used to sit ~45 lines further down (after this point), so when <outdir>
+  // did not already exist fopen() returned NULL and the following fprintf()
+  // crashed with SIGSEGV inside flockfile(). That is why a station whose
+  // result directory already existed worked while a fresh station did not.
+  // "mkdir -p" is a no-op when the directory is already there.
+  sprintf(t_str,"mkdir -p %s",outdir);
+  system(t_str);
   //--------------------------------------------
   //-- layerize the model and compute rf, disp--
   //-- compute disp for R-P, R-G, R-E ----------
