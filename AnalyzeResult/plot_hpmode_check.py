@@ -64,8 +64,25 @@ def load_ensemble(tag):
     return np.array(periods), np.array(rows)
 
 
+def load2(suffix):
+    """Load a simple 2-column '<x> <y>' file, or None if absent/empty."""
+    f = os.path.join(sdir, "MC.{}.{}".format(sta, suffix))
+    if not os.path.exists(f) or os.path.getsize(f) == 0:
+        return None
+    try:
+        a = np.atleast_2d(np.loadtxt(f))
+        return a[:, 0], a[:, 1]
+    except Exception:
+        return None
+
+
 acc_p = load("acc.average.p.disp")
 acc_h = load("acc.average.hp.disp")
+# NOTE: acc.average.* is the forward prediction of the AVERAGE-PARAMETER model
+# (velocities and layer thicknesses averaged separately).  It is loaded but no
+# longer plotted as "Final": because the ensemble smears interface depths, that
+# prediction does not sit in the middle of the posterior band.  The plotted
+# "Final" curves are ensemble means of the posterior predictions instead.
 mmf_p = load("minmisfit.p.disp")
 mmf_h = load("minmisfit.hp.disp")
 post_p = load_ensemble("all.ph")   # fundamental posterior ensemble
@@ -132,16 +149,27 @@ if mmf_h is not None:
             label="Minmisfit Vph (higher)")
     track(pred)
 
-# ---- AVERAGE / Final prediction (white face): fundamental=circle, higher=diamond ----
-if acc_p is not None:
-    per, pred, _, _ = acc_p
+# ---- Final prediction (white face): fundamental=circle, higher=diamond ----
+# Use the ENSEMBLE MEAN of the posterior predictions, not the forward response
+# of the average-parameter model.  For a non-linear problem those differ: at
+# station 00740 the average-parameter curve missed the observed higher mode by
+# RMS 0.44 km/s while the ensemble mean gives 0.10 km/s (the fundamental mode
+# is insensitive to the difference).  This also matches the main figure, where
+# the fundamental "Final Vph" already comes from MC.*.mean.ph, an ensemble mean.
+if post_p is not None:
+    per, pred = post_p[0], post_p[1].mean(axis=0)
     ax.plot(per, pred, "--", color="0.4", lw=1.5, zorder=4)
-    ax.plot(per, pred, "o", mfc="w", mec="k", ms=7, zorder=4, label="Final Vph (fund)")
+    ax.plot(per, pred, "o", mfc="w", mec="k", ms=7, zorder=4, label="Final Vph (fund, ens-mean)")
     track(pred)
-if acc_h is not None:
-    per, pred, _, _ = acc_h
+if post_h is not None:
+    # prefer the post-process output MC.*.mean.hp; older runs predate that file
+    _mh = load2("mean.hp")
+    if _mh is not None:
+        per, pred = _mh
+    else:
+        per, pred = post_h[0], post_h[1].mean(axis=0)
     ax.plot(per, pred, "--", color="0.4", lw=1.5, zorder=4)
-    ax.plot(per, pred, "D", mfc="w", mec="k", ms=7, zorder=4, label="Final Vph (higher)")
+    ax.plot(per, pred, "D", mfc="w", mec="k", ms=7, zorder=4, label="Final Vph (higher, ens-mean)")
     track(pred)
 
 # ---- tight zoom on data + prediction ----

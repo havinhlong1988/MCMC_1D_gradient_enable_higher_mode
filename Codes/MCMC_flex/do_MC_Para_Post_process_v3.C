@@ -1783,6 +1783,55 @@ double dep;
             mean_pper[i],mean_pvel[i]);
   }
   fclose(ff0);
+
+  // ---- ensemble mean of the HIGHER-MODE phase velocity (mirrors .mean.ph) ----
+  // When higher mode was added, only .mean.ph / .mean.e / .mean.rf were written,
+  // so the plotting scripts had to fall back to .acc.average.hp.disp, i.e. the
+  // forward response of the AVERAGED PARAMETERS.  For this non-linear problem
+  // that is NOT the mean prediction: at station 00740 it missed the observed
+  // higher mode by RMS 0.44 km/s while the ensemble mean gives 0.10 km/s.
+  // Write the true ensemble mean so the output files are correct on their own.
+  {
+    int npts_h = -1, nused_h = 0;
+    std::vector<double> mean_hpper, mean_hpvel;
+    for (i = 0; i < (int)models2.size(); i++)
+    {
+      tmodel = models2[i];
+      if (tmodel.data.disp.hpper.size() == 0) continue;
+      if (npts_h < 0)
+      {
+        npts_h = (int)tmodel.data.disp.hpper.size();
+        mean_hpper.assign(npts_h, 0.0);
+        mean_hpvel.assign(npts_h, 0.0);
+      }
+      // skip models with an inconsistent or short higher-mode curve
+      if ((int)tmodel.data.disp.hpper.size() != npts_h) continue;
+      if ((int)tmodel.data.disp.hpvel.size() < npts_h) continue;
+      for (j = 0; j < npts_h; j++)
+      {
+        mean_hpper[j]  = tmodel.data.disp.hpper[j];
+        mean_hpvel[j] += tmodel.data.disp.hpvel[j];
+      }
+      ++nused_h;
+    }
+    if (npts_h > 0 && nused_h > 0)
+    {
+      for (j = 0; j < npts_h; j++) mean_hpvel[j] /= (double)nused_h;
+      sprintf(minname, "%s/%s.mean.hp", outdir, wmodelname1);
+      fprintf(stderr, "Open the mean file: %s (%d models)\n", minname, nused_h);
+      ff0 = fopen(minname, "w");
+      if (ff0 != NULL)
+      {
+        for (i = 0; i < npts_h; i++)
+          fprintf(ff0, "%g %g\n", mean_hpper[i], mean_hpvel[i]);
+        fclose(ff0);
+      }
+    }
+    else
+    {
+      fprintf(stderr, "No higher-mode data in ensemble; .mean.hp not written\n");
+    }
+  }
 /*
   sprintf(minname,"%s/%s.all.gr",outdir,wmodelname1);
   ff0 = fopen(minname,"w");

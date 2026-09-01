@@ -472,6 +472,7 @@ def build_paths(sta, mdir, pwd):
         "minmisfit_group": os.path.join(sta_dir, "MC.{}.minmisfit.mod.group".format(sta)),
         "final_ph": os.path.join(sta_dir, "MC.{}.final.ph".format(sta)),
         "mean_ph": os.path.join(sta_dir, "MC.{}.mean.ph".format(sta)),
+        "mean_hp": os.path.join(sta_dir, "MC.{}.mean.hp".format(sta)),
         "final_e": os.path.join(sta_dir, "MC.{}.final.e".format(sta)),
         "mean_e": os.path.join(sta_dir, "MC.{}.mean.e".format(sta)),
         "final_rf": os.path.join(sta_dir, "MC.{}.final.rf".format(sta)),
@@ -590,7 +591,8 @@ def main():
                   and os.path.getsize(paths["posteriorfilehp"]) > 0)
     hp_periods = None
     hp_curves = None
-    hp_avg = None     # (per, pred) acc.average model
+    hp_avg = None     # (per, pred) acc.average model (prediction of the MEAN PARAMETERS)
+    hp_mean = None    # (per, pred) ENSEMBLE MEAN of the posterior predictions
     hp_min = None     # (per, pred) minmisfit model
     hp_obs = None     # (per, obs, unc) observed higher-mode data
     hp_start = None   # (per, pred) starting model
@@ -610,6 +612,15 @@ def main():
         if _rows:
             hp_periods = np.array(hp_periods)
             hp_curves = np.array(_rows)
+            # "Final HMode" = mean of the posterior PREDICTIONS, matching how the
+            # fundamental mode is handled (MC.*.mean.ph is already an ensemble
+            # mean).  Prefer the post-process output MC.*.mean.hp; older runs
+            # predate that file, so fall back to computing it from the ensemble.
+            try:
+                _mh = np.atleast_2d(np.loadtxt(paths["mean_hp"]))
+                hp_mean = (_mh[:, 0], _mh[:, 1])
+            except Exception:
+                hp_mean = (hp_periods, hp_curves.mean(axis=0))
         else:
             hp_present = False
     if hp_present:
@@ -827,12 +838,12 @@ def main():
     ax1.plot(minvsnew, mindepthnew, "bs--", lw=2, ms=10, label="MinMisfit Vs", zorder=7, mec="k")
     ax1.plot(avgvsnew, avgdepthnew, "mo--", mfc="w", lw=2, ms=10, label="Final Vs (depth-mean)", zorder=7, mec="k")
     # MC.*.acc.average.mod = model built from the AVERAGED PARAMETERS.
-    # Its forward prediction is what the dispersion panel draws as
-    # "Final Vph"/"Final HMode".  It is NOT the same model as the
-    # depth-mean curve above (they differ by up to ~1 km/s), so it is
-    # drawn here for comparison.
+    # Shown for comparison only: it is NOT the depth-mean curve above (they
+    # differ by up to ~1 km/s), and it no longer drives the dispersion panel.
+    # "Final Vph"/"Final HMode" are now ensemble means of the posterior
+    # predictions, which is the meaningful average for a non-linear problem.
     ax1.plot(avgvsf, avgdepthf, "-", color="deepskyblue", lw=2.5,
-             zorder=6, label="Avg-param Vs (drives Final Vph)")
+             zorder=6, label="Avg-param Vs (comparison)")
     ax1.errorbar(avgvsnew, avgdepthnew, xerr=avgnewstd, fmt="-o", ecolor="m", elinewidth=2, capsize=4, alpha=1.0)
     # Model spacing plot 
     # split crust / mantle
@@ -889,7 +900,7 @@ def main():
     ax1.grid(color="k", axis="both", linestyle="-", linewidth=2, alpha=0.1, zorder=2)
 
     title = "Vs of station: [{}] - MinimumMisfit: {} - #posteriorModels:{}".format(
-        sta, round(minmisfit, 2), len(posteriorfval)
+        sta, round(minmisfit, 2), len(posteriorVs)
     )
     fig.suptitle(
         title,
@@ -916,12 +927,12 @@ def main():
 
     ax4.plot(avgvsnew, avgdepthnew, "mo--", mfc="w", lw=2, ms=10, label="Final Vs (depth-mean)", zorder=7, mec="k")
     # MC.*.acc.average.mod = model built from the AVERAGED PARAMETERS.
-    # Its forward prediction is what the dispersion panel draws as
-    # "Final Vph"/"Final HMode".  It is NOT the same model as the
-    # depth-mean curve above (they differ by up to ~1 km/s), so it is
-    # drawn here for comparison.
+    # Shown for comparison only: it is NOT the depth-mean curve above (they
+    # differ by up to ~1 km/s), and it no longer drives the dispersion panel.
+    # "Final Vph"/"Final HMode" are now ensemble means of the posterior
+    # predictions, which is the meaningful average for a non-linear problem.
     ax4.plot(avgvsf, avgdepthf, "-", color="deepskyblue", lw=2.5,
-             zorder=6, label="Avg-param Vs (drives Final Vph)")
+             zorder=6, label="Avg-param Vs (comparison)")
     ax4.errorbar(avgvsnew, avgdepthnew, xerr=avgnewstd, fmt="-o", ecolor="m", elinewidth=2, capsize=4, alpha=1.0)
     ax4.plot(inputmodel["vs"], inputmodel["dep"], "r^-", lw=2.5, ms=10, label="Start Vs")
 
@@ -973,8 +984,15 @@ def main():
         if hp_min is not None:
             ax3.plot(hp_min[0], hp_min[1], "v", color="b", ms=9,
                      label="Minmisfit HMode", zorder=7, mec="k")
-        if hp_avg is not None:
-            ax3.plot(hp_avg[0], hp_avg[1], marker="D", mfc="w", mec="k", ms=8,
+        # "Final HMode" is the ENSEMBLE MEAN of the posterior predictions, to
+        # match the fundamental mode ("Final Vph" = MC.*.mean.ph, already a mean
+        # of predictions).  Previously this drew the forward response of the
+        # AVERAGED PARAMETERS (MC.*.acc.average.hp.disp); for this strongly
+        # non-linear problem that is not the mean prediction and fitted the
+        # observed higher mode ~4x worse (RMS 0.44 vs 0.10 km/s at station
+        # 00740), while the fundamental mode was unaffected.
+        if hp_mean is not None:
+            ax3.plot(hp_mean[0], hp_mean[1], marker="D", mfc="w", mec="k", ms=8,
                      ls="none", label="Final HMode", zorder=7)
         if hp_start is not None:
             ax3.plot(hp_start[0], hp_start[1], "*", color="r", ms=13,
@@ -1059,7 +1077,7 @@ def main():
     ax2 = plt.subplot(212)
 
     title = "Vs of station: [{}] - MinimumMisfit: {} - #posteriorModels:{}".format(
-            sta, round(minmisfit, 2), len(posteriorfval)
+            sta, round(minmisfit, 2), len(posteriorVs)
     )
     fig.suptitle(
         title,
