@@ -837,13 +837,13 @@ def main():
 
     ax1.plot(minvsnew, mindepthnew, "bs--", lw=2, ms=10, label="MinMisfit Vs", zorder=7, mec="k")
     ax1.plot(avgvsnew, avgdepthnew, "mo--", mfc="w", lw=2, ms=10, label="Final Vs (depth-mean)", zorder=7, mec="k")
-    # MC.*.acc.average.mod = model built from the AVERAGED PARAMETERS.
-    # Shown for comparison only: it is NOT the depth-mean curve above (they
-    # differ by up to ~1 km/s), and it no longer drives the dispersion panel.
-    # "Final Vph"/"Final HMode" are now ensemble means of the posterior
-    # predictions, which is the meaningful average for a non-linear problem.
-    ax1.plot(avgvsf, avgdepthf, "-", color="deepskyblue", lw=2.5,
-             zorder=6, label="Avg-param Vs (comparison)")
+    # Avg-param Vs (MC.*.acc.average.mod, the model built from the AVERAGED
+    # PARAMETERS) is deliberately not drawn: it has been checked and is not the
+    # depth-mean curve above, nor does it drive the dispersion panel any more
+    # ("Final Vph"/"Final HMode" are ensemble means of the posterior
+    # predictions).  Uncomment to bring it back for comparison.
+    # ax1.plot(avgvsf, avgdepthf, "-", color="deepskyblue", lw=2.5,
+    #          zorder=6, label="Avg-param Vs (comparison)")
     ax1.errorbar(avgvsnew, avgdepthnew, xerr=avgnewstd, fmt="-o", ecolor="m", elinewidth=2, capsize=4, alpha=1.0)
     # Model spacing plot 
     # split crust / mantle
@@ -888,7 +888,10 @@ def main():
     ax1.plot(inputmodel["vs"], inputmodel["dep"], "r^-", lw=2.5, ms=10, label="Start Vs")
 
     ax1.legend(loc="lower left", fontsize=15)
-    ticks = np.r_[np.arange(0, 5.0, 1.0), np.arange(5, 51, 5)]
+    # below 5 km the tick spacing is 2.5 km (was 5 km): the deep part is kept
+    # on purpose to show how the data-unconstrained depths spread, so it needs
+    # readable depth ticks.
+    ticks = np.r_[np.arange(0, 5.0, 1.0), np.arange(5, 51, 2.5)]
     ax1.set_yticks(ticks)
     ax1.set_xlabel("Vs (km/s)", fontdict=FONT_LABEL)
     ax1.set_ylabel("Depth (km)", fontdict=FONT_LABEL)
@@ -926,13 +929,13 @@ def main():
     ax4.plot(minvsnew, mindepthnew, "bs--", lw=2, ms=10, label="MinMisfit Vs", zorder=7, mec="k")
 
     ax4.plot(avgvsnew, avgdepthnew, "mo--", mfc="w", lw=2, ms=10, label="Final Vs (depth-mean)", zorder=7, mec="k")
-    # MC.*.acc.average.mod = model built from the AVERAGED PARAMETERS.
-    # Shown for comparison only: it is NOT the depth-mean curve above (they
-    # differ by up to ~1 km/s), and it no longer drives the dispersion panel.
-    # "Final Vph"/"Final HMode" are now ensemble means of the posterior
-    # predictions, which is the meaningful average for a non-linear problem.
-    ax4.plot(avgvsf, avgdepthf, "-", color="deepskyblue", lw=2.5,
-             zorder=6, label="Avg-param Vs (comparison)")
+    # Avg-param Vs (MC.*.acc.average.mod, the model built from the AVERAGED
+    # PARAMETERS) is deliberately not drawn: it has been checked and is not the
+    # depth-mean curve above, nor does it drive the dispersion panel any more
+    # ("Final Vph"/"Final HMode" are ensemble means of the posterior
+    # predictions).  Uncomment to bring it back for comparison.
+    # ax4.plot(avgvsf, avgdepthf, "-", color="deepskyblue", lw=2.5,
+    #          zorder=6, label="Avg-param Vs (comparison)")
     ax4.errorbar(avgvsnew, avgdepthnew, xerr=avgnewstd, fmt="-o", ecolor="m", elinewidth=2, capsize=4, alpha=1.0)
     ax4.plot(inputmodel["vs"], inputmodel["dep"], "r^-", lw=2.5, ms=10, label="Start Vs")
 
