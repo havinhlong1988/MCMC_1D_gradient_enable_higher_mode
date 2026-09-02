@@ -1,12 +1,12 @@
-model /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/data/00740_data/mod.00740
-para /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/data/00740_data/in.para_00740
-disp 1 3 1 /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/data/00740_data/00740.ph 3 /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/MonteCarlo/indata/in.hv 5 /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/data/00740_data/00740.hph
-/home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/data/00740_data/00740.ph
-/home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/MonteCarlo/indata/in.hv
-/home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/data/00740_data/00740.hph
+model /Users/vinhlongha/Research/MCMC/MCMC_1D_gradient_enable_higher_mode/CHT/data/00740_data/mod.00740
+para /Users/vinhlongha/Research/MCMC/MCMC_1D_gradient_enable_higher_mode/CHT/data/00740_data/in.para_00740
+disp 1 3 1 /Users/vinhlongha/Research/MCMC/MCMC_1D_gradient_enable_higher_mode/CHT/data/00740_data/00740.ph 3 /Users/vinhlongha/Research/MCMC/MCMC_1D_gradient_enable_higher_mode/CHT/MonteCarlo/indata/in.hv 5 /Users/vinhlongha/Research/MCMC/MCMC_1D_gradient_enable_higher_mode/CHT/data/00740_data/00740.hph
+/Users/vinhlongha/Research/MCMC/MCMC_1D_gradient_enable_higher_mode/CHT/data/00740_data/00740.ph
+/Users/vinhlongha/Research/MCMC/MCMC_1D_gradient_enable_higher_mode/CHT/MonteCarlo/indata/in.hv
+/Users/vinhlongha/Research/MCMC/MCMC_1D_gradient_enable_higher_mode/CHT/data/00740_data/00740.hph
 3
-rf /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/MonteCarlo/indata/in.rf 2.5
-Qmodel /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/MonteCarlo/indata/Qmodel.dat
+rf /Users/vinhlongha/Research/MCMC/MCMC_1D_gradient_enable_higher_mode/CHT/MonteCarlo/indata/in.rf 2.5
+Qmodel /Users/vinhlongha/Research/MCMC/MCMC_1D_gradient_enable_higher_mode/CHT/MonteCarlo/indata/Qmodel.dat
 p 1
 mono 1
 monol 2
@@ -15,7 +15,7 @@ tt 12
 jt 10000
 outdir 00740 00740 -2
 n_thread 5
-indata /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/data/00740_data/in.data_00740
+indata /Users/vinhlongha/Research/MCMC/MCMC_1D_gradient_enable_higher_mode/CHT/data/00740_data/in.data_00740
 selstyle -1
 mc_range 10.00
 dstep 0.1
@@ -26,13 +26,13 @@ input is over!
 ########## read over ! ###################
 #####      read control.dat ok ! #########
 0
-1 /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/data/00740_data/00740.ph
+1 /Users/vinhlongha/Research/MCMC/MCMC_1D_gradient_enable_higher_mode/CHT/data/00740_data/00740.ph
 10
 1
-3 /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/MonteCarlo/indata/in.hv
+3 /Users/vinhlongha/Research/MCMC/MCMC_1D_gradient_enable_higher_mode/CHT/MonteCarlo/indata/in.hv
 49
 2
-5 /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/data/00740_data/00740.hph
+5 /Users/vinhlongha/Research/MCMC/MCMC_1D_gradient_enable_higher_mode/CHT/data/00740_data/00740.hph
 6
 model rf: 120
 0 1  5.0 5 0.05 1.264800 1.820050 2.231850 2.500750 2.826600  0.100000 0.100000 0.200000 0.200000 0.400000 1 3 3 1.70 1.73 0 0 0 0 0 0
@@ -45,159 +45,144 @@ mohothick if i: 1
 mohothick?? 5
 finish reading para! npara=12
 0 1.78
-/home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/MonteCarlo/indata/Qmodel.dat
+/Users/vinhlongha/Research/MCMC/MCMC_1D_gradient_enable_higher_mode/CHT/MonteCarlo/indata/Qmodel.dat
 read all information ok!
-208088
+184984
  size 12
 0
 read ok here!
 read all over!
-1368
-paras.size?? 1368
-models.size?? 1368
+1216
+paras.size?? 1216
+models.size?? 1216
 minmisfit?
-kai_cri 4.75019
-0 1368 461 -1 461
-posterior: 89 1
-posterior: 90 2
-posterior: 107 3
-posterior: 108 4
-posterior: 121 5
-posterior: 148 6
-posterior: 152 7
-posterior: 156 8
-posterior: 160 9
-posterior: 165 10
-posterior: 180 11
-posterior: 182 12
-posterior: 184 13
-posterior: 212 14
-posterior: 213 15
-posterior: 225 16
-posterior: 231 17
-posterior: 232 18
-posterior: 243 19
-posterior: 245 20
-posterior: 247 21
-posterior: 264 22
-posterior: 268 23
-posterior: 273 24
-posterior: 287 25
-posterior: 299 26
-posterior: 311 27
-posterior: 329 28
-posterior: 340 29
-posterior: 342 30
-posterior: 346 31
-posterior: 380 32
-posterior: 383 33
-posterior: 389 34
-posterior: 390 35
-posterior: 391 36
-posterior: 393 37
-posterior: 396 38
-posterior: 397 39
-posterior: 398 40
-posterior: 404 41
-posterior: 433 42
-posterior: 438 43
-posterior: 440 44
-posterior: 441 45
-posterior: 442 46
-posterior: 444 47
-posterior: 451 48
-posterior: 455 49
-posterior: 456 50
-posterior: 457 51
-posterior: 459 52
-posterior: 461 53
-posterior: 462 54
-posterior: 464 55
-posterior: 465 56
-posterior: 471 57
-posterior: 476 58
-posterior: 481 59
-posterior: 501 60
-posterior: 586 61
-posterior: 607 62
-posterior: 698 63
-posterior: 710 64
-posterior: 717 65
-posterior: 724 66
-posterior: 728 67
-posterior: 748 68
-posterior: 749 69
-posterior: 753 70
-posterior: 755 71
-posterior: 760 72
-posterior: 769 73
-posterior: 771 74
-posterior: 790 75
-posterior: 795 76
-posterior: 807 77
-posterior: 875 78
-posterior: 876 79
-posterior: 878 80
-posterior: 884 81
-posterior: 890 82
-posterior: 901 83
-posterior: 904 84
-posterior: 908 85
-posterior: 974 86
-posterior: 980 87
-posterior: 992 88
-posterior: 997 89
-posterior: 1016 90
-posterior: 1021 91
-posterior: 1023 92
-posterior: 1025 93
-posterior: 1026 94
-posterior: 1029 95
-posterior: 1042 96
-posterior: 1054 97
-posterior: 1063 98
-posterior: 1076 99
-posterior: 1078 100
-posterior: 1082 101
-posterior: 1083 102
+kai_cri 4.64995
+0 1216 281 -1 281
+posterior: 81 1
+posterior: 86 2
+posterior: 101 3
+posterior: 111 4
+posterior: 114 5
+posterior: 123 6
+posterior: 132 7
+posterior: 141 8
+posterior: 143 9
+posterior: 145 10
+posterior: 147 11
+posterior: 150 12
+posterior: 153 13
+posterior: 154 14
+posterior: 163 15
+posterior: 171 16
+posterior: 173 17
+posterior: 174 18
+posterior: 177 19
+posterior: 198 20
+posterior: 199 21
+posterior: 200 22
+posterior: 201 23
+posterior: 202 24
+posterior: 207 25
+posterior: 219 26
+posterior: 222 27
+posterior: 223 28
+posterior: 231 29
+posterior: 237 30
+posterior: 245 31
+posterior: 264 32
+posterior: 280 33
+posterior: 281 34
+posterior: 282 35
+posterior: 291 36
+posterior: 294 37
+posterior: 300 38
+posterior: 306 39
+posterior: 307 40
+posterior: 316 41
+posterior: 322 42
+posterior: 331 43
+posterior: 333 44
+posterior: 334 45
+posterior: 358 46
+posterior: 359 47
+posterior: 388 48
+posterior: 396 49
+posterior: 397 50
+posterior: 400 51
+posterior: 433 52
+posterior: 434 53
+posterior: 437 54
+posterior: 444 55
+posterior: 449 56
+posterior: 451 57
+posterior: 470 58
+posterior: 483 59
+posterior: 493 60
+posterior: 524 61
+posterior: 526 62
+posterior: 582 63
+posterior: 585 64
+posterior: 588 65
+posterior: 589 66
+posterior: 642 67
+posterior: 644 68
+posterior: 645 69
+posterior: 648 70
+posterior: 656 71
+posterior: 662 72
+posterior: 667 73
+posterior: 670 74
+posterior: 671 75
+posterior: 672 76
+posterior: 674 77
+posterior: 683 78
+posterior: 684 79
+posterior: 700 80
+posterior: 727 81
+posterior: 744 82
+posterior: 746 83
+posterior: 753 84
+posterior: 765 85
+posterior: 767 86
+posterior: 770 87
+posterior: 786 88
+posterior: 801 89
+posterior: 822 90
+posterior: 825 91
+posterior: 840 92
+posterior: 856 93
+posterior: 882 94
+posterior: 885 95
+posterior: 896 96
+posterior: 897 97
+posterior: 938 98
+posterior: 987 99
+posterior: 994 100
+posterior: 1000 101
+posterior: 1084 102
 posterior: 1085 103
-posterior: 1095 104
-posterior: 1099 105
-posterior: 1101 106
-posterior: 1118 107
-posterior: 1126 108
-posterior: 1127 109
-posterior: 1131 110
-posterior: 1132 111
-posterior: 1136 112
-posterior: 1137 113
-posterior: 1164 114
-posterior: 1166 115
-posterior: 1169 116
-posterior: 1172 117
-posterior: 1177 118
-posterior: 1180 119
-posterior: 1184 120
-posterior: 1205 121
-posterior: 1211 122
-posterior: 1233 123
-posterior: 1235 124
-posterior: 1238 125
-posterior: 1247 126
-posterior: 1253 127
-posterior: 1269 128
-posterior: 1276 129
-posterior: 1278 130
-posterior: 1280 131
-posterior: 1283 132
-posterior: 1287 133
-posterior: 1295 134
-posterior: 1328 135
-posterior: 1330 136
-posterior: 1349 137
+posterior: 1097 104
+posterior: 1114 105
+posterior: 1116 106
+posterior: 1128 107
+posterior: 1133 108
+posterior: 1135 109
+posterior: 1141 110
+posterior: 1146 111
+posterior: 1155 112
+posterior: 1157 113
+posterior: 1158 114
+posterior: 1172 115
+posterior: 1175 116
+posterior: 1177 117
+posterior: 1192 118
+posterior: 1194 119
+posterior: 1197 120
+posterior: 1198 121
+posterior: 1200 122
 getting average model..
 done writing average model..
-now let's do this! 137
+now let's do this! 122
 00740/MC.00740.ave.mod
 post process finish!!! ready to plot!
 

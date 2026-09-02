@@ -1,8 +1,8 @@
-model /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/data/00990_data/mod.00990
-para /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/data/00990_data/in.para_00990
-disp 1 3 1 /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/data/00990_data/00990.ph 3 /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/MonteCarlo/indata/in.hv 5 /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/data/00990_data/00990.hph
-rf /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/MonteCarlo/indata/in.rf 2.5
-Qmodel /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/MonteCarlo/indata/Qmodel.dat
+model /Users/vinhlongha/Research/MCMC/MCMC_1D_gradient_enable_higher_mode/CHT/data/00990_data/mod.00990
+para /Users/vinhlongha/Research/MCMC/MCMC_1D_gradient_enable_higher_mode/CHT/data/00990_data/in.para_00990
+disp 1 3 1 /Users/vinhlongha/Research/MCMC/MCMC_1D_gradient_enable_higher_mode/CHT/data/00990_data/00990.ph 3 /Users/vinhlongha/Research/MCMC/MCMC_1D_gradient_enable_higher_mode/CHT/MonteCarlo/indata/in.hv 5 /Users/vinhlongha/Research/MCMC/MCMC_1D_gradient_enable_higher_mode/CHT/data/00990_data/00990.hph
+rf /Users/vinhlongha/Research/MCMC/MCMC_1D_gradient_enable_higher_mode/CHT/MonteCarlo/indata/in.rf 2.5
+Qmodel /Users/vinhlongha/Research/MCMC/MCMC_1D_gradient_enable_higher_mode/CHT/MonteCarlo/indata/Qmodel.dat
 p 1
 mono 1
 monol 2
@@ -11,7 +11,7 @@ tt 12
 jt 10000
 outdir 00990 00990 -2
 n_thread 5
-indata /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/data/00990_data/in.data_00990
+indata /Users/vinhlongha/Research/MCMC/MCMC_1D_gradient_enable_higher_mode/CHT/data/00990_data/in.data_00990
 selstyle -1
 mc_range 10.00
 dstep 0.1

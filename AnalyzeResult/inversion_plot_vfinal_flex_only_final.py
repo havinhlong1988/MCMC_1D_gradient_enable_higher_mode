@@ -64,15 +64,18 @@ if os.path.exists(indatafile):
     data = np.genfromtxt(indatafile, dtype=int)
 else:
     print("File {} does not exist! Stop!!!".format(indatafile))
-    sys.exist(0)
-if (len(data)==4):
-    iph=data[0]; 
-    igv=data[1]; 
-    ihv=data[2]; 
-    irf=data[3]; 
+    sys.exit(1)
+# in.data holds at least 4 flags (iph, igv, ihv, irf); the higher-mode-enabled
+# format appends further entries, so accept >=4 and use the first four
+# (this matches parse_inversion_flags() in inversion_plot_vfinal_flex.py).
+if (len(data)>=4):
+    iph=int(data[0]); 
+    igv=int(data[1]); 
+    ihv=int(data[2]); 
+    irf=int(data[3]); 
 else:
-    print("The {} file format wrong! 4 rows and 1 column integer".format(indatafile))
-    sys.exist(0)
+    print("The {} file format wrong! need >=4 rows, 1 column integer".format(indatafile))
+    sys.exit(1)
 
 print("making figure for station: ",sta)
 #%% Plot type for the 1D model
@@ -531,6 +534,65 @@ minvs=2.0; maxvs=5.0
 if (iph==1):
     mcper,mcpf,mcpo,mcpounc=np.loadtxt(mdir+'/'+sta+nameplus+'/MC.'+sta+'.acc.average.p.disp',usecols=(0,1,2,3),unpack=True)
 
+# -----------------------------------------------------------------------------
+# 1st HIGHER MODE (HP) phase velocity -- optional, station may not have it.
+# Files: MC.<sta>.all.hp            posterior ensemble ('M idx <N per> <N val>')
+#        MC.<sta>.acc.average.hp.disp / .minmisfit.hp.disp  (per pred obs unc)
+#        Initial.hp                                          starting model
+# Everything is guarded so stations WITHOUT higher-mode data plot exactly as
+# before.
+# -----------------------------------------------------------------------------
+def _hp_path(tag):
+    return mdir+'/'+sta+nameplus+'/MC.'+sta+'.'+tag
+
+def _load_hp_disp(tag):
+    """Return (per, pred, obs, unc) from a *.hp.disp file, or None."""
+    f = _hp_path(tag)
+    if (not os.path.exists(f)) or os.path.getsize(f) == 0:
+        return None
+    a = np.atleast_2d(np.loadtxt(f))
+    if a.size == 0:
+        return None
+    return a[:, 0], a[:, 1], a[:, 2], a[:, 3]
+
+def _load_hp_ensemble():
+    """Return (periods, curves[nmodel, nper]) from MC.<sta>.all.hp, or None."""
+    f = _hp_path('all.hp')
+    if (not os.path.exists(f)) or os.path.getsize(f) == 0:
+        return None
+    periods, rows = None, []
+    with open(f) as fh:
+        for line in fh:
+            t = line.split()
+            if len(t) < 4:            # skip blank lines (models without HP data)
+                continue
+            v = [float(x) for x in t[2:]]   # drop the 'M' tag and model index
+            n = len(v) // 2
+            if n == 0:
+                continue
+            periods = v[:n]
+            rows.append(v[n:])
+    if not rows:
+        return None
+    return np.array(periods), np.array(rows)
+
+hp_post  = _load_hp_ensemble()
+hp_avg   = _load_hp_disp('acc.average.hp.disp')
+hp_min   = _load_hp_disp('minmisfit.hp.disp')
+ihp      = 1 if (hp_post is not None or hp_avg is not None) else 0
+
+hp_start = None
+_f_hp_start = mdir+'/'+sta+nameplus+'/Initial.hp'
+if os.path.exists(_f_hp_start) and os.path.getsize(_f_hp_start) > 0:
+    _s = np.atleast_2d(np.loadtxt(_f_hp_start))
+    if _s.size:
+        hp_start = (_s[:, 0], _s[:, 1])
+
+if ihp == 1:
+    print('higher mode (1st) found for station ' + str(sta))
+else:
+    print('no higher-mode data for station ' + str(sta) + ' - HP panel skipped')
+
 #final h/v from inversion
 if (ihv==1):
     mceper,mchvf,mchvo,mchvounc=np.loadtxt(mdir+'/'+sta+nameplus+'/MC.'+sta+'.acc.average.e.disp',usecols=(0,1,2,3),unpack=True)
@@ -658,7 +720,13 @@ for jj in np.arange(len(posteriorVs)-1):
     ax1.plot(posteriorVs[jj],posteriordepth[jj],c=c,alpha=0.1)
     
 # ax1.plot(minvsnew,mindepthnew,'bs--',lw=2,ms=10,label='MinMisfit Vs',zorder=7,mec='k') # Min misfit model
-ax1.plot(avgvsnew,avgdepthnew,'r',linewidth=3,ms=10,label='Final Vs',zorder=4,alpha=0.5) # Average model
+ax1.plot(avgvsnew,avgdepthnew,'r',linewidth=3,ms=10,label='Final Vs (depth-mean)',zorder=4,alpha=0.5) # Average model
+# MC.*.acc.average.mod = model built from the AVERAGED PARAMETERS.
+# Its forward prediction is what the dispersion panel draws as
+# "Final Vph"/"Final HMode".  It is NOT the same model as the
+# depth-mean curve above (they differ by up to ~1 km/s), so it is
+# drawn here for comparison.
+ax1.plot(avgvsf,avgdepthf,'-',color='deepskyblue',linewidth=2.5,zorder=5,label='Avg-param Vs (drives Final Vph)')
 # ax1.errorbar(avgvsnew,avgdepthnew, xerr=avgnewstd, fmt='-o',ecolor="m",elinewidth=2,capsize=4,alpha=1.0)
 # ax1.plot(avgvsnew,avgdepthnew,'yo',lw=0.5,ms=5,label='Mean Vs',zorder=7,mec='k')
 #add back in after including mantle area searched!!!!
@@ -723,7 +791,13 @@ for jj in np.arange(len(posteriorVs)-1):
 #ax4.plot(posteriorVs[minmisfitpostidx],posteriordepth[minmisfitpostidx],'mo',ms=10,lw=2,label='MinMisfit Vs',zorder=7) #NEW
 
 # ax4.plot(minvsnew,mindepthnew,'bs--',lw=2,ms=10,label='MinMisfit Vs',zorder=7,mec='k') # Min misfit model
-ax4.plot(avgvsnew,avgdepthnew,'r',linewidth=3,ms=10,label='Final Vs',zorder=4,alpha=0.5)
+ax4.plot(avgvsnew,avgdepthnew,'r',linewidth=3,ms=10,label='Final Vs (depth-mean)',zorder=4,alpha=0.5)
+# MC.*.acc.average.mod = model built from the AVERAGED PARAMETERS.
+# Its forward prediction is what the dispersion panel draws as
+# "Final Vph"/"Final HMode".  It is NOT the same model as the
+# depth-mean curve above (they differ by up to ~1 km/s), so it is
+# drawn here for comparison.
+ax4.plot(avgvsf,avgdepthf,'-',color='deepskyblue',linewidth=2.5,zorder=5,label='Avg-param Vs (drives Final Vph)')
 # ax4.errorbar(avgvsnew,avgdepthnew, xerr=avgnewstd, fmt='-o',ecolor="m",elinewidth=2,capsize=4,alpha=1.0)
 
 # ax4.plot(avgvsnew,avgdepthnew,'yo',lw=1,ms=5,label='Mean Vs',zorder=7,mec='k')
@@ -759,6 +833,36 @@ if (iph==1):
     ax3.errorbar(mcper,mcpo,yerr=mcpounc,fmt='o',color='k',ecolor='k',ms=7,elinewidth=2.5,capthick=1.5,label='Data Vph',zorder=6)
     # ax3.plot(mincper,mincpf,'bs',lw=1,ms=6,label='Minmisfit Vph',zorder=7,mec='k')
     ax3.plot(mcper,mcpf,'r',linewidth=3,ms=10,label='Final Vph',zorder=4,alpha=0.5)
+
+# ---- 1st HIGHER MODE overlaid on the SAME axis -------------------------------
+# Colours match the fundamental (data=black, minmisfit=blue, final=red); only
+# the marker differs (diamond/triangle).  The posterior is a filled magenta
+# band (2-98 percentile), matching plot_hpmode_check.py.
+# NOTE: the "Final" curve is the forward prediction of the AVERAGE-PARAMETER
+# model, not of the depth-mean Vs profile drawn in the Vs panel, so it is not
+# expected to sit exactly mid-band.
+if (ihp==1):
+    if hp_post is not None:
+        _hper, _hcurves = hp_post
+        _o  = np.argsort(_hper)
+        _lo = np.percentile(_hcurves, 2, axis=0)[_o]
+        _hi = np.percentile(_hcurves, 98, axis=0)[_o]
+        ax3.fill_between(np.asarray(_hper)[_o], _lo, _hi, color='magenta',
+                         alpha=0.30, lw=0, zorder=3, label='Posterior HMode')
+    if hp_avg is not None:
+        ax3.errorbar(hp_avg[0], hp_avg[2], yerr=hp_avg[3], fmt='D', color='k',
+                     ecolor='k', ms=7, elinewidth=2.5, capthick=1.5,
+                     label='Data HMode', zorder=6)
+    if hp_min is not None:
+        ax3.plot(hp_min[0], hp_min[1], 'v', color='b', ms=9, mec='k',
+                 label='Minmisfit HMode', zorder=7)
+    if hp_avg is not None:
+        ax3.plot(hp_avg[0], hp_avg[1], 'r', linewidth=3, alpha=0.5, zorder=4)
+        ax3.plot(hp_avg[0], hp_avg[1], 'D', mfc='w', mec='k', ms=8, ls='none',
+                 label='Final HMode', zorder=7)
+    if hp_start is not None:
+        ax3.plot(hp_start[0], hp_start[1], '*', color='r', ms=13,
+                 label='Starting HMode', zorder=5)
     # ax3.plot(mcper,mcpf,'wo',lw=1,ms=6,label='Final Vph',zorder=7,mec='k')
     #ax3.plot(mcper,mcpf,'yo',lw=0.5,ms=4,label='MC Vph',zorder=7,mec='k')
 
@@ -777,8 +881,38 @@ ax3.set_ylabel('Vph (km/s)',fontdict = {'family':'serif','color':'darkblue','siz
 #ax3.set_xlim([8,40])
 # ax3.set_xlim([2.5,10.5])
 # ax3.set_ylim(1.95, 4.6)#(1.95, 3.1)#
-ax3.set_ylim(1.5, 5)#(1.95, 3.1)#
-ax3.set_xlim([posteriorphper[0]-0.5,posteriorphper[-1]+0.5])
+# Auto-zoom the Vph axis to the observed + predicted values of BOTH modes.
+# The old hard-coded ylim (1.5, 5) was tuned for a deeper/faster dataset and
+# clipped these shallow stations entirely (Vph ~0.45-1.45 km/s), which also
+# hid the higher-mode band.  The starting model is deliberately EXCLUDED from
+# the range (it is far off by design), matching plot_hpmode_check.py.
+_yv = []
+if (iph==1):
+    _yv += list(np.asarray(mcpo).ravel()) + list(np.asarray(mcpf).ravel())
+    _yv += list(np.asarray(mincpf).ravel())
+    if not np.all(posteriorph[:, 0] == 0):
+        _yv += [float(np.nanmin(posteriorph)), float(np.nanmax(posteriorph))]
+if (ihp==1):
+    if hp_avg is not None:
+        _yv += list(np.asarray(hp_avg[1]).ravel()) + list(np.asarray(hp_avg[2]).ravel())
+    if hp_min is not None:
+        _yv += list(np.asarray(hp_min[1]).ravel())
+    if hp_post is not None:
+        _yv += [float(np.nanpercentile(hp_post[1], 2)), float(np.nanpercentile(hp_post[1], 98))]
+_yv = [v for v in _yv if np.isfinite(v)]
+if len(_yv) >= 2:
+    _lo_y, _hi_y = min(_yv), max(_yv)
+    _pad = max(0.05 * (_hi_y - _lo_y), 0.05)
+    ax3.set_ylim(_lo_y - _pad, _hi_y + _pad)
+else:
+    ax3.set_ylim(1.5, 5)   # fallback: previous hard-coded range
+# extend the period axis so the 1st higher mode (longer periods) is not clipped
+_xmax_ph = posteriorphper[-1]
+if (ihp==1) and (hp_avg is not None):
+    _xmax_ph = max(_xmax_ph, float(np.max(hp_avg[0])))
+if (ihp==1) and (hp_post is not None):
+    _xmax_ph = max(_xmax_ph, float(np.max(hp_post[0])))
+ax3.set_xlim([posteriorphper[0]-0.5,_xmax_ph+0.5])
 ax3.grid(color='k', axis='both',linestyle='-', linewidth=2,alpha=0.1,zorder=2)
 ax3.tick_params(labelsize=20)#, labelright=True)
 ax3.yaxis.tick_right()
