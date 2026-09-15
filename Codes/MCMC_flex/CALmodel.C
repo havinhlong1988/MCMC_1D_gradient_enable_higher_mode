@@ -591,14 +591,18 @@ int goodmodel(modeldef &model, vector<int> vmono, vector<int> vgrad)
       model.groups[iid].np=tnp;//#of parameters
 		  int tnp = model.groups[iid].np;
       model.groups[iid].ddep=atof(v[4].c_str()); // group depth step
+		  // The 11 control columns are always last, so p_flag can be read before
+		  // the length check -- a p_flag==5 group carries tnp EXTRA Vp/Vs columns.
+		  int tmp_p_flag = atoi(v[size-9].c_str());
+		  int nvpvscol = (tmp_p_flag == 5) ? tnp : 0;
 		  //=========check the column # of input file====
 		  if(model.groups[iid].flag == 4 and tnp!=2) //grad
       {
         cout<<"##########for gradient model, ONLY 2 values!\n";exit(0);
       }
-		  else if ( (model.groups[iid].flag==1 and size != 5+2*tnp+11 ) or (model.groups[iid].flag==2 and size!=5+tnp+11)) //Bs or lay
+		  else if ( (model.groups[iid].flag==1 and size != 5+2*tnp+nvpvscol+11 ) or (model.groups[iid].flag==2 and size!=5+tnp+nvpvscol+11)) //Bs or lay
 			{
-			  cout<<"#########wrong input for model: "<<line<< "\t\t size: "<<size<<" flag: "<<model.groups[iid].flag<<endl;
+			  cout<<"#########wrong input for model: "<<line<< "\t\t size: "<<size<<" flag: "<<model.groups[iid].flag<<" p_flag: "<<tmp_p_flag<<endl;
 			  //for(int k=0;k<size;k++)cout<<"//  "<<v[k]<<" "<<k;
 			  exit(0);
 			}
@@ -608,6 +612,7 @@ int goodmodel(modeldef &model, vector<int> vmono, vector<int> vgrad)
       }
 		  model.groups[iid].value.clear(); // velocity
       model.groups[iid].ratio.clear(); // thickness
+      model.groups[iid].value1vpvs.clear(); // explicit per-sub-layer Vp/Vs
 		  for(i=0;i< tnp;i++)
 			{
 			  model.groups[iid].value.push_back(atof(v[5+i].c_str())); // velocity values
@@ -616,6 +621,18 @@ int goodmodel(modeldef &model, vector<int> vmono, vector<int> vgrad)
           model.groups[iid].ratio.push_back(atof(v[5+i+tnp].c_str())); // push the ratio (total equal 1.0)
         }
       }//for
+      // ---- explicit Vp/Vs values, one per control point, when p_flag==5 ----
+      if (tmp_p_flag == 5)
+      {
+        int vpvs_start = (model.groups[iid].flag == 1) ? (5 + 2*tnp) // after value + ratio
+                                                       : (5 + tnp);  // after value only
+        for (i=0;i<tnp;i++)
+        {
+          model.groups[iid].value1vpvs.push_back(atof(v[vpvs_start+i].c_str()));
+        }
+        fprintf(stderr,"[readmod] group=%d p_flag=5 read value1vpvs size=%zu\n",
+                iid, model.groups[iid].value1vpvs.size());
+      }
         model.groups[iid].fdvs1=(atof(v[size-1].c_str()));
         model.groups[iid].fdvs=(atof(v[size-2].c_str()));
         model.groups[iid].dvs1=(atof(v[size-3].c_str()));
@@ -1236,8 +1253,20 @@ int goodmodel(modeldef &model, vector<int> vmono, vector<int> vgrad)
 	    for (j=0;j<model.groups[i].np;j++) {
               fprintf(ff,"%lf ",model.groups[i].value[j]);
               }
-            if(model.groups[i].flag==1) { // layerized, add ratio
-	      fprintf(ff,"%lf ",model.groups[i].ratio[j]);
+            if(model.groups[i].flag==1) { // layerized, add every ratio
+              // was: ratio[j] with j==np after the loop -> out-of-bounds read,
+              // so only one bogus ratio reached the .mod.group file.
+              for (j=0;j<model.groups[i].np;j++) {
+                fprintf(ff,"%lf ",model.groups[i].ratio[j]);
+                }
+              }
+            if(model.groups[i].p_flag==5) { // explicit per-sub-layer Vp/Vs
+              for (j=0;j<model.groups[i].np;j++) {
+                if (j < (int)model.groups[i].value1vpvs.size())
+                  fprintf(ff,"%lf ",model.groups[i].value1vpvs[j]);
+                else
+                  fprintf(ff,"%lf ",model.groups[i].vpvs);
+                }
               }
             fprintf(ff,"%d %d %d %g %g %g %g %g %g %g %g\n",model.groups[i].r_flag,model.groups[i].q_flag,model.groups[i].p_flag,model.groups[i].vpvs,model.groups[i].vpvs1,model.groups[i].drho,model.groups[i].drho1,model.groups[i].dvs,model.groups[i].dvs1,model.groups[i].fdvs,model.groups[i].fdvs1);             
             }

@@ -30,6 +30,7 @@ int get_misfit(paradef &para, modeldef &inmodel,modeldef &outmodel,double p, int
 	  para.nparav=0;
 	  para.npara_tt=0; // total thickness pertubation (sediment and crust)
 	  para.npara_tr=0; // sublayer thickness ratio pertubation
+	  para.npara_vpvs=0; // Vp/Vs pertubation (in.para type -1)
 	  para.L=0.;
 	  para.misfit=0.;
 	  para.flag=0;
@@ -54,6 +55,7 @@ int get_misfit(paradef &para, modeldef &inmodel,modeldef &outmodel,double p, int
 	  int nparav=0;
 	  int npara_tt=0;
 	  int npara_tr=0;
+	  int npara_vpvs=0;
 	  para.para0.clear();
 	  while(getline(mff,line))
 	  {
@@ -79,6 +81,10 @@ int get_misfit(paradef &para, modeldef &inmodel,modeldef &outmodel,double p, int
 				npara_tr++;
 			}
 		}
+		if (std::atoi(v[0].c_str()) == -1) // per-sub-layer Vp/Vs pertubation
+		{
+			npara_vpvs++;
+		}
 		k=k+1;
 		para.para0.push_back(v);
 	  }
@@ -87,7 +93,8 @@ int get_misfit(paradef &para, modeldef &inmodel,modeldef &outmodel,double p, int
 	  para.nparav=nparav; // since layercake model give number depth-ratio = number of thickness
 	  para.npara_tt=npara_tt; // use later to arrange the parameter
 	  para.npara_tr=npara_tr; // use later to perturbe the sublayer thickness
-	  fprintf(stderr, " readpara > npara: %d | npara velocity: %d | npara total thicness: %d | npara thickness ratio: %d\n", k,nparav,npara_tt,npara_tr);
+	  para.npara_vpvs=npara_vpvs; // use later to perturbe the per-sub-layer Vp/Vs
+	  fprintf(stderr, " readpara > npara: %d | npara velocity: %d | npara total thicness: %d | npara thickness ratio: %d | npara vpvs: %d\n", k,nparav,npara_tt,npara_tr,npara_vpvs);
 	  cout<<"finish reading para! npara="<<para.npara<<endl;
 	  return 1;
 	}	
@@ -161,12 +168,22 @@ int get_misfit(paradef &para, modeldef &inmodel,modeldef &outmodel,double p, int
 	  int i,flag,ibad;
 	  double newv,sigma,mean,cvr;
 	  outpara=inpara; 
-	  int offset = (inpara.nparav+inpara.npara_tt);  // ratios start here in your code
-	  int nr = (inpara.npara-offset);                // number of ratios in this group
-	  if (offset < 0 || nr < 0 || offset + nr > inpara.npara) 
+	  // -------------------------------------------------------------------
+	  // in.para is read as four CONTIGUOUS blocks, in this mandatory order:
+	  //   [ velocities | total thickness | thickness ratios | Vp/Vs ]
+	  // Only the ratio block goes through the simplex; every other block is
+	  // perturbed independently inside its own space1 bounds.  Using
+	  // npara_tr (instead of "everything after the thickness") is what keeps
+	  // a Vp/Vs row from being renormalised as if it were a ratio.
+	  // -------------------------------------------------------------------
+	  const int offset     = (inpara.nparav+inpara.npara_tt); // ratios start here
+	  const int nr         = inpara.npara_tr;                 // number of ratios
+	  const int idx_vpvs0  = offset + nr;                     // Vp/Vs start here
+	  const int n_vpvs     = inpara.npara_vpvs;               // number of Vp/Vs
+	  if (offset < 0 || nr < 0 || idx_vpvs0 + n_vpvs != inpara.npara)
 	  {
-        fprintf(stderr, "bad ratio indexing: npara=%d offset=%d nr=%d\n",
-                inpara.npara, offset, nr);
+        fprintf(stderr, "bad parameter indexing: npara=%d nparav=%d npara_tt=%d npara_tr=%d npara_vpvs=%d idx_vpvs0=%d\n",
+                inpara.npara, inpara.nparav, inpara.npara_tt, inpara.npara_tr, n_vpvs, idx_vpvs0);
         return 0;
       }  
       const int n_main = offset; // velocity + total thickness part
@@ -198,6 +215,19 @@ int get_misfit(paradef &para, modeldef &inmodel,modeldef &outmodel,double p, int
 		{
         	outpara.parameter[offset] = 1.0; // only one ratio => must be 1
         }
+		// -------- Vp/Vs: independent uniform draw inside its own bounds --------
+		for (i = idx_vpvs0; i < idx_vpvs0 + n_vpvs; i++)
+		{
+			cvr = gen_random_unif01();
+			newv = cvr*(inpara.space1[i][1]-inpara.space1[i][0])+inpara.space1[i][0];
+			if (newv > inpara.space1[i][1] || newv < inpara.space1[i][0])
+			{
+				fprintf(stderr,"bad VpVs random: i=%d cvr=%g newv=%g min=%g max=%g\n",
+						i,cvr,newv,inpara.space1[i][0],inpara.space1[i][1]);
+				return 0;
+			}
+			outpara.parameter[i]=newv;
+		}
 	  }//if		  	  
 	  else //normal distribution genration when new model need to forward
 	  {
@@ -205,6 +235,7 @@ int get_misfit(paradef &para, modeldef &inmodel,modeldef &outmodel,double p, int
 		{
                 //cout<<"which edit? "<<inpara.parameter[i]<<endl; //EMB
 		  flag=0;
+		  ibad=0; // was left uninitialised -> ibad%5000 could trip on garbage
 		  mean=inpara.parameter[i];
 		  sigma=inpara.space1[i][2];
 		  while(flag<1)
@@ -242,6 +273,31 @@ int get_misfit(paradef &para, modeldef &inmodel,modeldef &outmodel,double p, int
 		{
             outpara.parameter[offset] = 1.0;
         }
+		// -------- Vp/Vs: independent gaussian step inside its own bounds --------
+		for (i = idx_vpvs0; i < idx_vpvs0 + n_vpvs; i++)
+		{
+			flag=0;
+			ibad=0;
+			mean=inpara.parameter[i];
+			sigma=inpara.space1[i][2];
+			while(flag<1)
+			{
+				newv=gen_random_normal(mean,sigma);
+				ibad++;
+				if(newv>inpara.space1[i][1] || newv<inpara.space1[i][0])
+				{
+					if(ibad%5000==4999)
+					{
+						fprintf(stderr,"cannot find good VpVs random: i=%d old=%g mean=%g sigma=%g newv=%g min=%g max=%g ibad=%d\n",
+								i,inpara.parameter[i],mean,sigma,newv,inpara.space1[i][0],inpara.space1[i][1],ibad);
+						exit(1);
+					}
+					continue;
+				}
+				else {flag=2;}
+			}//while
+			outpara.parameter[i]=newv;
+		}
 	  }
 	// Print to check
 	double total_tr = 0.0;
@@ -335,9 +391,13 @@ int get_misfit(paradef &para, modeldef &inmodel,modeldef &outmodel,double p, int
 				tv=model.groups[ng].ratio[nv];
 			}
 		}
-		else if(p0==-1)// vpvs
+		else if(p0==-1)// per-sub-layer Vp/Vs: "-1 <style> <range> <step> <group> <sub>"
 		{
-			tv=model.groups[ng].vpvs1;
+			nv = atoi(inpara.para0[i][5].c_str()); // sub-layer id
+			if (nv < (int)model.groups[ng].value1vpvs.size())
+				tv = model.groups[ng].value1vpvs[nv];
+			else
+				tv = model.groups[ng].vpvs; // group has no explicit list (p_flag != 5)
 		}
         else if (p0==-2)
 		{
@@ -561,8 +621,21 @@ int get_misfit(paradef &para, modeldef &inmodel,modeldef &outmodel,double p, int
 			// fprintf(stderr, "\n");
 			}
 
-		else if(p0==-1)// vpvs
-			outmodel.groups[ng].vpvs1=newv;
+		else if (p0 == -1) // per-sub-layer Vp/Vs
+		{
+			nv = atoi(para.para0[i][5].c_str());
+			if (outmodel.groups[ng].p_flag != 5)
+			{
+				fprintf(stderr,
+					"WARNING para2mod: p0=-1 but group=%d p_flag=%d, still updating value1vpvs\n",
+					ng, outmodel.groups[ng].p_flag);
+			}
+			if ((int)outmodel.groups[ng].value1vpvs.size() <= nv)
+			{
+				outmodel.groups[ng].value1vpvs.resize(nv + 1, outmodel.groups[ng].vpvs);
+			}
+			outmodel.groups[ng].value1vpvs[nv] = newv;
+		}
                 else if(p0==-2) 
                         outmodel.groups[ng].vpvs=newv;
                 else if (p0==-3)

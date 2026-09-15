@@ -14,6 +14,92 @@ from src import setup_functions, setup_bspline, setup_layercake, setup_gradient
 # Suppress all warnings
 warnings.filterwarnings("ignore")
 
+
+# ===========================================================================
+#  Per-sub-layer Vp/Vs helpers (ported from
+#  20260510_FM_vpvs_pertubation_huang14_vpvs_model).
+# ===========================================================================
+def _as_string_list(value):
+    """Convert scalar/list/array VpVs input to a clean list of strings."""
+    if isinstance(value, (list, tuple, np.ndarray)):
+        return [str(v) for v in value]
+    return [str(value)]
+
+
+def _get_group_vpvs_values(group_name, npara, fallback_value):
+    """
+    Return one initial Vp/Vs value for each sub-layer in a group.
+
+    parameters.uniform_vpvs = 1 : one scalar value, cloned to npara sub-layers.
+    parameters.uniform_vpvs = 0 : use parameters.vpvs_{group_name}; the list
+                                  length must equal npara.
+
+    group_name must be 'sed', 'crust' or 'mantle'.
+    """
+    npara = int(npara)
+    if npara <= 0:
+        return []
+
+    uniform_vpvs = int(getattr(parameters, 'uniform_vpvs', 1))
+    par_name = 'vpvs_%s' % group_name
+
+    if uniform_vpvs == 1:
+        value = getattr(parameters, par_name, fallback_value)
+        value = _as_string_list(value)[0]
+        return [str(value)] * npara
+
+    if not hasattr(parameters, par_name):
+        print("ERROR: uniform_vpvs=0 but parameters.%s is not defined." % par_name)
+        print("       Please define %s with %d values." % (par_name, npara))
+        sys.exit(1)
+
+    values = _as_string_list(getattr(parameters, par_name))
+    if len(values) != npara:
+        print("ERROR: parameters.%s has %d values, but %s npara = %d." % (
+            par_name, len(values), group_name, npara))
+        print("       The Vp/Vs list must match the number of sub-layers written "
+              "to mod.{sta} and in.para_{sta}.")
+        sys.exit(1)
+    return values
+
+
+def _fmt_values(values):
+    """Format list values as model-line numeric strings."""
+    if not values:
+        return ''
+    return ''.join(' %5.6f' % float(v) for v in values)
+
+
+def _vpvs_step_profile_from_ratios(total_top, total_thick, ratios, vpvs_values):
+    """
+    Build a Vp/Vs plotting profile at sub-layer boundaries.
+
+    total_thick=30 km with ratios=[0.2]*5 gives depths 0,6,12,18,24,30.
+    The first value is copied to the group-top depth, then each sub-layer
+    value is plotted at the bottom boundary of that sub-layer.
+    """
+    ratios = [float(x) for x in ratios]
+    vpvs_values = [float(x) for x in vpvs_values]
+
+    if len(ratios) == 0 or len(vpvs_values) == 0:
+        return [], []
+    if len(ratios) != len(vpvs_values):
+        print("ERROR: Vp/Vs plot depth mismatch: %d ratios but %d Vp/Vs values." % (
+            len(ratios), len(vpvs_values)))
+        sys.exit(1)
+
+    z = float(total_top)
+    total_thick = float(total_thick)
+
+    plot_vpvs = [vpvs_values[0]]
+    plot_depths = [z]
+    for rr, vv in zip(ratios, vpvs_values):
+        z += rr * total_thick
+        plot_vpvs.append(vv)
+        plot_depths.append(z)
+    return plot_vpvs, plot_depths
+
+
 def setup(stadata,Vel_dir,src_dir,query_sub,data_sub,in_sub):
     # print(stadata)
     # --------------------------------------------------------------------------------------------------------
@@ -114,6 +200,54 @@ def setup(stadata,Vel_dir,src_dir,query_sub,data_sub,in_sub):
         sys.exit(0)
     print("check n-para sed, crust, mantle: ", sednpara, crustnpara, mantlenpara)
     # ---------------------------------------------------------------------------------------------------------------
+    # Per-sub-layer Vp/Vs perturbation switches, resolved locally (parameters.py
+    # is never modified).  When a group is enabled its P flag in mod.{sta} must
+    # be 5, the model line carries one Vp/Vs per sub-layer, and in.para_{sta}
+    # gets one "-1" row per sub-layer.
+    use_sed_vpvs_pert = (
+        getattr(parameters, 'sublay_vpvschange', 0) == 1 and
+        getattr(parameters, 'subsedvpvschange', 0) == 1
+    )
+    use_crust_vpvs_pert = (
+        getattr(parameters, 'sublay_vpvschange', 0) == 1 and
+        getattr(parameters, 'subcrustvpvschange', 0) == 1
+    )
+    use_mantle_vpvs_pert = (
+        getattr(parameters, 'sublay_vpvschange', 0) == 1 and
+        getattr(parameters, 'submantlevpvschange', 0) == 1
+    )
+
+    sedPflag_out    = '5' if use_sed_vpvs_pert    else parameters.sedPflag
+    crustPflag_out  = '5' if use_crust_vpvs_pert  else parameters.crustPflag
+    mantlePflag_out = '5' if use_mantle_vpvs_pert else parameters.mantlePflag
+
+    print(">>> VpVs perturbation flags: ",
+          "sed=", use_sed_vpvs_pert, "crust=", use_crust_vpvs_pert,
+          "mantle=", use_mantle_vpvs_pert)
+    print(">>> P flags written to mod.{sta}: ",
+          "sedPflag=", sedPflag_out, "crustPflag=", crustPflag_out,
+          "mantlePflag=", mantlePflag_out)
+
+    # Initial Vp/Vs values, written straight after the thickness-ratio list.
+    # NOTE: the extra columns are emitted ONLY for a group whose P flag is 5 --
+    # writing them with p_flag 1/3/4 would make readmod reject the model line.
+    sed_vpvs_values    = _get_group_vpvs_values('sed', sednpara, getattr(parameters,'sedmodvpvs','0'))
+    crust_vpvs_values  = _get_group_vpvs_values('crust', crustnpara, getattr(parameters,'crmodvpvs','1.70'))
+    mantle_vpvs_values = _get_group_vpvs_values('mantle', mantlenpara, getattr(parameters,'mtmodvpvs','1.75'))
+
+    tmpsedvpvs0    = _fmt_values(sed_vpvs_values)    if use_sed_vpvs_pert    else ''
+    tmpcrustvpvs0  = _fmt_values(crust_vpvs_values)  if use_crust_vpvs_pert  else ''
+    tmpmantlevpvs0 = _fmt_values(mantle_vpvs_values) if use_mantle_vpvs_pert else ''
+
+    if use_sed_vpvs_pert or use_crust_vpvs_pert or use_mantle_vpvs_pert:
+        print(">>> Initial Vp/Vs written to mod.{sta}:")
+        if use_sed_vpvs_pert and parameters.sed_flag == 1:
+            print("    sediment:", sed_vpvs_values)
+        if use_crust_vpvs_pert:
+            print("    crust   :", crust_vpvs_values)
+        if use_mantle_vpvs_pert and parameters.man_flag == 1:
+            print("    mantle  :", mantle_vpvs_values)
+    # ---------------------------------------------------------------------------------------------------------------
     
     if (parameters.sed_flag==1):
         #5th column
@@ -129,6 +263,8 @@ def setup(stadata,Vel_dir,src_dir,query_sub,data_sub,in_sub):
                 if parameters.sublay_thickchange == 1: # If allow the sublayer thickness variation 
                     if parameters.submantlethickchange == 1:
                         locals()['inparamantlesubthick%s' % x] = np.append(parameters.mantle_sub_thick,[ManLayerId, str(x)]); 
+                if use_mantle_vpvs_pert:
+                    locals()['inparamantlevpvs%s' % x] = np.append(parameters.manlte_vpvs, [ManLayerId, str(x)]); 
             #
         
         for x in range(0,sednpara):
@@ -137,6 +273,8 @@ def setup(stadata,Vel_dir,src_dir,query_sub,data_sub,in_sub):
             if parameters.sublay_thickchange == 1: # If allow the sublayer thickness variation 
                 if parameters.subsedthickchange == 1:
                     locals()['inparasedsubthick%s' % x] = np.append(parameters.sediment_sub_thick,[SedLayerId, str(x)]); 
+            if use_sed_vpvs_pert:
+                locals()['inparasedvpvs%s' % x] = np.append(parameters.sediment_vpvs, [SedLayerId, str(x)]); 
     else:
         #5th column
         CrustLayerId='0'; 
@@ -148,6 +286,8 @@ def setup(stadata,Vel_dir,src_dir,query_sub,data_sub,in_sub):
                 if parameters.sublay_thickchange == 1: # If allow the sublayer thickness variation 
                     if parameters.submantlethickchange == 1:
                         locals()['inparamantlesubthick%s' % x] = np.append(parameters.mantle_sub_thick,[ManLayerId, str(x)]);  
+                if use_mantle_vpvs_pert:
+                    locals()['inparamantlevpvs%s' % x] = np.append(parameters.manlte_vpvs, [ManLayerId, str(x)]); 
         
     for x in range(0,crustnpara):
         locals()['inparacrustVs%s' % x] = np.append(parameters.crust_vel, [CrustLayerId, str(x)]); 
@@ -155,6 +295,8 @@ def setup(stadata,Vel_dir,src_dir,query_sub,data_sub,in_sub):
         if parameters.sublay_thickchange == 1: # If allow the sublayer thickness variation 
             if parameters.subcrustthickchange == 1:
                 locals()['inparacrustsubthick%s' % x] = np.append(parameters.crust_sub_thick,[CrustLayerId, str(x)]); 
+        if use_crust_vpvs_pert:
+            locals()['inparacrustvpvs%s' % x] = np.append(parameters.crust_vpvs, [CrustLayerId, str(x)]); 
         
     # Crust thickness calculation
     pertRangCrustThick=np.round((float(parameters.PertRangeCrustThick)*crustthick/100),2)
@@ -202,6 +344,21 @@ def setup(stadata,Vel_dir,src_dir,query_sub,data_sub,in_sub):
                 if parameters.submantlethickchange == 1:        
                     for x in range(0,mantlenpara):
                         ff0.write(' '.join(locals()['inparamantlesubthick%s' % x])+'\n')
+
+        # ---- Vp/Vs rows MUST come last ---------------------------------------
+        # gen_newpara reads in.para as four contiguous blocks:
+        #   [ velocities | total thickness | thickness ratios | Vp/Vs ]
+        # and only the ratio block goes through the simplex.  Emitting a "-1"
+        # row anywhere else would put it inside the ratio block.
+        if use_sed_vpvs_pert and (parameters.sed_flag==1):
+            for x in range(0, sednpara):
+                ff0.write(' '.join(locals()['inparasedvpvs%s' % x])+'\n')
+        if use_crust_vpvs_pert:
+            for x in range(0, crustnpara):
+                ff0.write(' '.join(locals()['inparacrustvpvs%s' % x])+'\n')
+        if use_mantle_vpvs_pert and (parameters.man_flag==1):
+            for x in range(0, mantlenpara):
+                ff0.write(' '.join(locals()['inparamantlevpvs%s' % x])+'\n')
                     
 
     ff0.close()
@@ -391,18 +548,18 @@ def setup(stadata,Vel_dir,src_dir,query_sub,data_sub,in_sub):
     if (parameters.sed_flag==1):
         sthick=seddepth; 
         locals()['modsedlayer']=SedLayerId+' '+parameters.modlay+' %4.1f'%(sthick)+' %d'%(sednpara)+' %4.1f'%(float(parameters.dds))+\
-        tmpsv0+' '+tmpsd0+' '+parameters.sedrhoflag+' '+parameters.sedQflag+' '+parameters.sedPflag+' '+\
+        tmpsv0+' '+tmpsd0+tmpsedvpvs0+' '+parameters.sedrhoflag+' '+parameters.sedQflag+' '+sedPflag_out+' '+\
         parameters.sedmodvpvs+' '+parameters.sedVpVs1+' '+parameters.sedDrho+' '+parameters.sedDrho1+' '+\
         parameters.seddVs+' '+parameters.seddvs1+' '+parameters.sedfdvs+' '+parameters.sedfdvs1
         # 
     locals()['modcrustlayer']=CrustLayerId+' '+parameters.modlay+' %4.1f %d %4.2f'%(crustthick,crustnpara,float(parameters.ddc))+tmpcv0+' '+tmpcd0+\
-    ' '+parameters.crustrhoflag+' '+parameters.crustQflag+' '+parameters.crustPflag+' '+parameters.crmodvpvs+' '+\
+    tmpcrustvpvs0+' '+parameters.crustrhoflag+' '+parameters.crustQflag+' '+crustPflag_out+' '+parameters.crmodvpvs+' '+\
     parameters.crVpVs1+' '+parameters.crDrho+' '+parameters.crDrho1+' '+parameters.crdVs+' '+parameters.crdvs1+\
     ' '+parameters.crfdvs+' '+parameters.crfdvs1
         # 
     if (parameters.man_flag==1):
         locals()['modmantlelayer']=ManLayerId+' '+parameters.modlay+' %4.1f %d %4.1f'%(mantlethick,mantlenpara,float(parameters.ddm))+tmpmv0+' '+tmpmd0+\
-        ' '+parameters.mantlerhoflag+' '+parameters.mantleQflag+' '+parameters.mantlePflag+' '+parameters.mtmodvpvs+' '+\
+        tmpmantlevpvs0+' '+parameters.mantlerhoflag+' '+parameters.mantleQflag+' '+mantlePflag_out+' '+parameters.mtmodvpvs+' '+\
         parameters.mtVpVs1+' '+parameters.mtDrho+' '+parameters.mtDrho1+' '+parameters.mtdVs+' '+parameters.mtdVs1+' '+\
         parameters.mtfdvs+' '+parameters.mtfdvs1           
 # ------------------------------- >>>>>>>> write mod.{STA} here !!! <<<<<<< ----------------------------------

@@ -22,6 +22,8 @@ int updategroup(groupdef &group)
           // flag: 2 AK135, 120km, vpvs=1.789; 
           // flag: 3 vpvs = vpvs
           // flag: 4 Huang 2014 relationship
+          // flag: 5 same as flag 3, but vpvs is the PER-SUB-LAYER value
+          //         (group.value1vpvs[i]) instead of the single group ratio
           if (flag==1) {
 
               tp = 0.9409 + 2.0947*ts - 0.8206*ts*ts + \
@@ -33,6 +35,7 @@ int updategroup(groupdef &group)
           }
           else if (flag==3) tp = ts*vpvs;
           else if (flag==4) tp = ts*(1.373+0.699/ts);
+          else if (flag==5) tp = ts*vpvs;
           else tp = ts*1.75;
             //fprintf(stderr,"vp flag: %d \n",flag);
           return tp;
@@ -116,6 +119,11 @@ int updategroup1(groupdef &group)  // layer the model from layered model
     r_flag = group.r_flag;
     dd = group.ddep;      // target sub-layer thickness
 
+    // Explicit per-sub-layer Vp/Vs control values (p_flag==5).  Copied before
+    // the layered arrays below are rebuilt; empty for the classic p_flag 1-4
+    // groups, in which case the scalar vpvs/vpvs1 logic below is used as before.
+    std::vector<double> input_vpvs = group.value1vpvs;
+
     const double eps = 1e-8;  // tolerance for floating-point remainder
 
     // ----------------------------------------------------------------------
@@ -162,6 +170,12 @@ int updategroup1(groupdef &group)  // layer the model from layered model
             tdrho = group.drho;
             if (int(group.fvpvs1) <= i + 1 && int(group.frho) > i + 1 && group.frho != 0)
                 tdrho = group.drho1;
+        }
+
+        // Per-sub-layer Vp/Vs override: one value per original control point.
+        if ((int)input_vpvs.size() > i)
+        {
+            tvpvs = input_vpvs[i];
         }
 
         vs_block[i]     = ts;      // block Vs after refinement

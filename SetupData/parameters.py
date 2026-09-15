@@ -54,6 +54,34 @@ if sublay_thickchange==1:
     subsedthickchange=0; 
     subcrustthickchange=1; 
     submantlethickchange=0; 
+# ---------------------------------------------------------------------------------
+# Per-sub-layer Vp/Vs perturbation (ported from the vpvs/huang14 project).
+# When enabled for a group, setup_*.py writes p_flag=5 for that group in
+# mod.{sta}, appends one Vp/Vs value per sub-layer to that model line, and adds
+# one "-1" row per sub-layer to in.para_{sta}.  Vp is then Vs * (that sub-layer's
+# Vp/Vs) instead of the single group ratio.
+#   0 = off (classic behaviour, p_flag stays 1/3/4)
+# ---------------------------------------------------------------------------------
+sublay_vpvschange=1;
+if sublay_vpvschange==1:
+    '''
+    Which groups get a per-sub-layer Vp/Vs that the MCMC is allowed to perturb.
+    1 for yes and 0 for no.  The P flag (5) is set automatically by setup_*.py.
+    '''
+    # -------------------------------------
+    subsedvpvschange=0; 
+    subcrustvpvschange=1; # -> crust p_flag written as 5
+    submantlevpvschange=1; # -> mantle p_flag written as 5
+    # use one uniform value per group (1), or one value per sub-layer (0)
+    uniform_vpvs = 0;
+    if uniform_vpvs == 1:
+        vpvs_sed="1.70"
+        vpvs_crust="1.70"
+        vpvs_mantle="1.70"
+    else: # list length MUST equal that group's number of parameters (npara)
+        vpvs_sed=["1.7","1.7"]
+        vpvs_crust=["2.05", "1.728", "1.727", "1.73", "1.74"]
+        vpvs_mantle=["1.75"]
 ####################################################################################################################################
 # the station name and station coordinantes (file name only):
 stafilename='station_cor.lst'
@@ -105,21 +133,26 @@ if (is_equal_weight==0):
 ##                    in.para_{sta} (Should change here!)
 ### ==============================================================================================================================
 # 1st column options (fix thickness and pertube velocity = 0 | fix velocity and pertube thick  = 1)
-PertTypeSedVel='0'; PertTypeSedThick='1'; PertTypeSedSubThick='1'; 
-PertTypeCrustVel='0'; PertTypeCrustThick='1'; PertTypeCrustSubThick='1'; 
-PertTypeMantleVel='0'; PertTypeMantleThick='1'; PertTypeMantleSubThick='1'; 
+PertTypeSedVel='0'; PertTypeSedThick='1'; PertTypeSedSubThick='1'; PertTypeSedVpVs='-1'; 
+PertTypeCrustVel='0'; PertTypeCrustThick='1'; PertTypeCrustSubThick='1'; PertTypeCrustVpVs='-1'; 
+PertTypeMantleVel='0'; PertTypeMantleThick='1'; PertTypeMantleSubThick='1'; PertTypeMantleVpVs='-1'; 
 # 2nd col options (percent = -1 vs absolute = 1)
-PertStyleSedVel='1'; PertStyleSedThick='-1';  PertStyleSedSubThick='-1';  
-PertStyleCrustVel='-1'; PertStyleCrustThick='1'; PertStyleCrustSubThick='-1'; 
-PertStyleMantleVel='-1';  PertStypeMantleThick='-1'; PertStyleMantleSubThick='-1'; 
+PertStyleSedVel='1'; PertStyleSedThick='-1';  PertStyleSedSubThick='-1'; PertStyleSedVpVs='-1'; 
+PertStyleCrustVel='-1'; PertStyleCrustThick='1'; PertStyleCrustSubThick='-1'; PertStyleCrustVpVs='-1'; 
+PertStyleMantleVel='-1';  PertStypeMantleThick='-1'; PertStyleMantleSubThick='-1'; PertStyleMantleVpVs='-1'; 
 # 3rd col; perturbation range
-PertRangeSedVel='2.0'; PertRangeSedThick='100'; PertRangeSedSubThick='100'; 
-PertRangeCrustVel='90'; PertRangeCrustThick='60'; PertRangeCrustSubThick='90'; 
-PertRangeMantleVel='50'; PertRangeMantleSubThick='90'; 
+PertRangeSedVel='2.0'; PertRangeSedThick='100'; PertRangeSedSubThick='100'; PertRangeSedVpVs='70'; 
+PertRangeCrustVel='90'; PertRangeCrustThick='60'; PertRangeCrustSubThick='90'; PertRangeCrustVpVs='40'; 
+PertRangeMantleVel='50'; PertRangeMantleSubThick='90'; PertRangeMantleVpVs='40'; 
+# !! Vp/Vs range warning: style -1 is a PERCENTAGE and the C++ applies no physical
+# !! floor to it (CALpara.C skips the clamp for type -1).  40% around 1.73 reaches
+# !! 1.04, and any Vp/Vs below sqrt(2)=1.414 is a NEGATIVE Poisson's ratio.
+# !! For a physical prior use style '1' (absolute) with a range near 0.25, e.g.
+# !!   PertStyleCrustVpVs='1'; PertRangeCrustVpVs='0.25'   -> 1.73 +- 0.25
 # 4th col #gaussian step width
-gwStepSedVel='0.05'; gwStepSedThick='0.1'; gwStepSedSubThick='0.05'; 
-gwStepCrustVel='0.05'; gwStepCrustThick='1.0'; gwStepCrustSubThick='0.05'; 
-gwStepMantleVel='0.05'; gwStepMantleSubThick='0.05';   
+gwStepSedVel='0.05'; gwStepSedThick='0.1'; gwStepSedSubThick='0.05'; gwStepSedVpVs='0.05'; 
+gwStepCrustVel='0.05'; gwStepCrustThick='1.0'; gwStepCrustSubThick='0.05'; gwStepCrustVpVs='0.05'; 
+gwStepMantleVel='0.05'; gwStepMantleSubThick='0.05'; gwStepMantleVpVs='0.05';   
 # Notice: The sublayers variation based on the ratio to over sed-crust-mantle total thickness. So variation step (gwStep) is smaller
 ### =================================== No need to change anything here ========================== 
 #### Now setup for in.para_{sta} based above values (colum 5 will set by other script)
@@ -129,15 +162,21 @@ sediment_thick = [PertTypeSedThick,PertStyleSedThick,PertRangeSedThick,gwStepSed
 # 
 sediment_sub_thick = [PertTypeSedSubThick,PertStyleSedSubThick,PertRangeSedSubThick,gwStepSedSubThick]
 #
+sediment_vpvs = [PertTypeSedVpVs,PertStyleSedVpVs,PertRangeSedVpVs,gwStepSedVpVs]
+#
 crust_vel = [PertTypeCrustVel,PertStyleCrustVel,PertRangeCrustVel,gwStepCrustVel]
 # leave the value as percentage here. Will change to absolutely later
 crust_thick = [PertTypeCrustThick,PertStyleCrustThick,PertRangeCrustThick,gwStepCrustThick]
 #
 crust_sub_thick = [PertTypeCrustSubThick,PertStyleCrustSubThick,PertRangeCrustSubThick,gwStepCrustSubThick]
 #
+crust_vpvs = [PertTypeCrustVpVs,PertStyleCrustVpVs,PertRangeCrustVpVs,gwStepCrustVpVs]
+#
 manlte_vel = [PertTypeMantleVel,PertStyleMantleVel,PertRangeMantleVel,gwStepMantleVel]
 #
 mantle_sub_thick = [PertTypeMantleSubThick,PertStyleMantleSubThick,PertRangeMantleSubThick,gwStepMantleSubThick]
+#
+manlte_vpvs = [PertTypeMantleVpVs,PertStyleMantleVpVs,PertRangeMantleVpVs,gwStepMantleVpVs]
 
 ### ==============================================================================================================================
 ##                    mod.{sta} (Should change here!) - See E.M.B's tutorial for more information

@@ -3,6 +3,9 @@
 //    dispdef  gained nhpper/fhphase/phmisfit/hpL + hpper/hpvelo/hpvel/unhpvelo.
 //    indatadef gained hpflag/hpw.
 //    See modify_to_higher.log (section C).
+//  MODIFIED 2026-09-15: per-sub-layer Vp/Vs perturbation (ported from
+//    20260510_FM_vpvs_pertubation_huang14_vpvs_model).
+//    groupdef gained value1vpvs; paradef gained npara_vpvs.
 // ====================================================================
 #include<iostream>
 #include<vector>
@@ -30,6 +33,7 @@ double dvs,fdvs,dvs1;
 double fvpvs1,fdvs1,frho1;
 double Qs;  // Qs value for the group; 
 vector<double> ratio,value,value1,value1p,value1r,value1q,thick1,Bsplines;
+vector<double> value1vpvs;  // explicit per-sub-layer Vp/Vs control values (p_flag==5)
 
 //ratio, from readin file of layered model;value from readin file,vel;
 //value1, layered vel; thick1, layered h;
@@ -100,6 +104,7 @@ int npara,flag;
 int nparav; //number of pertubation vel
 int npara_tt; //number of pertubation total thickness
 int npara_tr; //number of pertubation thickness ratio
+int npara_vpvs; //number of pertubation Vp/Vs (in.para type -1)
 //number of parameter, vel and h; onece updated para, falg =1, after 1st model_derived para;
 double L,misfit;
 vector<double> parameter;

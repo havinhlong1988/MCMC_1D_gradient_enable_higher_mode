@@ -342,11 +342,16 @@ def read_posterior_rf_blocks(posteriorfilerf):
     return posteriorrftime, posteriorfval
 
 
-def read_posterior_vs_and_depth(posteriorfile, plot_type):
+def read_posterior_vs_and_depth(posteriorfile, plot_type, depthfile=None):
+    # depthfile defaults to "<posteriorfile>_depth"; pass it explicitly to read a
+    # companion ensemble (e.g. MC.{sta}.all.value_vp) that shares the Vs depth grid.
+    if depthfile is None:
+        depthfile = posteriorfile + "_depth"
+
     with open(posteriorfile, "r") as ff:
         posterior_vs_tmp = [x.strip().split() for x in ff if x.strip()]
 
-    with open(posteriorfile + "_depth", "r") as ff:
+    with open(depthfile, "r") as ff:
         posterior_depth_tmp = [x.strip().split() for x in ff if x.strip()]
 
     if len(posterior_vs_tmp) != len(posterior_depth_tmp):
@@ -487,6 +492,10 @@ def build_paths(sta, mdir, pwd):
         "out_main_png": os.path.join(sta_dir, "{}_MCMC.png".format(sta)),
         "out_misfit_png": os.path.join(sta_dir, "{}_IterVsMisfit.png".format(sta)),
         "out_avg_txt": "{}_Vsv_average.txt".format(sta),
+        # per-sub-layer Vp/Vs perturbation: posterior Vp profiles (same depth
+        # grid as MC.{sta}.all.value) written by do_MC_Para_Post_process_v3
+        "posteriorfile_vp": os.path.join(sta_dir, "MC.{}.all.value_vp".format(sta)),
+        "out_avg_vp_txt": "{}_Vp_average.txt".format(sta),
         "out_posterior_txt": "{}_Vsv.txt".format(sta),
     }
     return paths
@@ -663,6 +672,47 @@ def main():
     else:
         posteriorrftime, posteriorfval = [], []
     posteriorVs, posteriordepth = read_posterior_vs_and_depth(paths["posteriorfile"], plot_type)
+
+    # ---- posterior Vp (only present when a group used p_flag=5 / Vp/Vs pert.) ----
+    posteriorVp = None
+    vpvs_depth = None
+    vpvs_mean = None
+    vpvs_std = None
+    if os.path.isfile(paths["posteriorfile_vp"]):
+        try:
+            posteriorVp, _ = read_posterior_vs_and_depth(
+                paths["posteriorfile_vp"], plot_type,
+                depthfile=paths["posteriorfile"] + "_depth")
+        except Exception as exc:
+            print("[WARN] could not read {}: {}".format(paths["posteriorfile_vp"], exc))
+            posteriorVp = None
+
+    if posteriorVp is not None and len(posteriorVp) == len(posteriorVs) and len(posteriorVs) > 0:
+        # Ensemble Vp/Vs at every depth node, with gaussian error propagation:
+        #   R = Vp/Vs ,  sigma_R = R * sqrt((sVp/Vp)^2 + (sVs/Vs)^2)
+        try:
+            nnode = min(min(len(a) for a in posteriorVs), min(len(a) for a in posteriorVp))
+            vs_arr = np.array([np.asarray(a)[:nnode] for a in posteriorVs], dtype=float)
+            vp_arr = np.array([np.asarray(a)[:nnode] for a in posteriorVp], dtype=float)
+            dep_arr = np.asarray(posteriordepth[0])[:nnode].astype(float)
+
+            vs_m, vs_s = vs_arr.mean(axis=0), vs_arr.std(axis=0)
+            vp_m, vp_s = vp_arr.mean(axis=0), vp_arr.std(axis=0)
+
+            ok = np.isfinite(vs_m) & np.isfinite(vp_m) & (vs_m > 0.0) & (vp_m > 0.0)
+            vpvs_depth = dep_arr[ok]
+            vpvs_mean = vp_m[ok] / vs_m[ok]
+            vpvs_std = vpvs_mean * np.sqrt((vp_s[ok] / vp_m[ok]) ** 2 + (vs_s[ok] / vs_m[ok]) ** 2)
+
+            with open(paths["out_avg_vp_txt"], "w") as fobj:
+                for i in range(len(vpvs_depth)):
+                    fobj.write("{} {} {}\n".format(vpvs_depth[i], vp_m[ok][i], vpvs_mean[i]))
+            print("Vp/Vs profile written to {}".format(paths["out_avg_vp_txt"]))
+        except Exception as exc:
+            print("[WARN] could not build the Vp/Vs profile: {}".format(exc))
+            vpvs_depth = vpvs_mean = vpvs_std = None
+    elif posteriorVp is not None:
+        print("[WARN] Vp ensemble size does not match Vs; skipping the Vp/Vs curve")
 
     with open(paths["out_posterior_txt"], "w") as fobj:
         for i in range(len(posteriordepth)):
@@ -845,6 +895,17 @@ def main():
     # ax1.plot(avgvsf, avgdepthf, "-", color="deepskyblue", lw=2.5,
     #          zorder=6, label="Avg-param Vs (comparison)")
     ax1.errorbar(avgvsnew, avgdepthnew, xerr=avgnewstd, fmt="-o", ecolor="m", elinewidth=2, capsize=4, alpha=1.0)
+
+    # ---- Vp posterior cloud + ensemble Vp/Vs profile (p_flag=5 runs only) ----
+    if posteriorVp is not None:
+        for jj in range(len(posteriorVp) - 1):
+            ax1.plot(posteriorVp[jj], posteriordepth[jj], c="lightblue", alpha=0.10, lw=2)
+    if vpvs_mean is not None:
+        ax1.plot(vpvs_mean, vpvs_depth, "k^-", lw=2.0, ms=6,
+                 label="Final Vp/Vs", zorder=8)
+        ax1.errorbar(vpvs_mean, vpvs_depth, xerr=vpvs_std, fmt="none",
+                     ecolor="k", elinewidth=1.5, capsize=3, alpha=1.0, zorder=8)
+
     # Model spacing plot 
     # split crust / mantle
     right_non_mantle = inputmodelright[inputmodelright["id"] != 4].copy()
@@ -893,7 +954,8 @@ def main():
     # readable depth ticks.
     ticks = np.r_[np.arange(0, 5.0, 1.0), np.arange(5, 51, 2.5)]
     ax1.set_yticks(ticks)
-    ax1.set_xlabel("Vs (km/s)", fontdict=FONT_LABEL)
+    ax1.set_xlabel("Vs, Vp (km/s)  /  Vp/Vs" if posteriorVp is not None else "Vs (km/s)",
+                   fontdict=FONT_LABEL)
     ax1.set_ylabel("Depth (km)", fontdict=FONT_LABEL)
     ax1.xaxis.set_major_formatter(FormatStrFormatter("%.1f"))
     ax1.tick_params(labeltop=False, labelsize=20)
@@ -937,6 +999,17 @@ def main():
     # ax4.plot(avgvsf, avgdepthf, "-", color="deepskyblue", lw=2.5,
     #          zorder=6, label="Avg-param Vs (comparison)")
     ax4.errorbar(avgvsnew, avgdepthnew, xerr=avgnewstd, fmt="-o", ecolor="m", elinewidth=2, capsize=4, alpha=1.0)
+
+    # ---- Vp posterior cloud + ensemble Vp/Vs profile (p_flag=5 runs only) ----
+    if posteriorVp is not None:
+        for jj in range(len(posteriorVp) - 1):
+            ax4.plot(posteriorVp[jj], posteriordepth[jj], c="lightblue", alpha=0.10, lw=2)
+    if vpvs_mean is not None:
+        ax4.plot(vpvs_mean, vpvs_depth, "k^-", lw=2.0, ms=6,
+                 label="Final Vp/Vs", zorder=8)
+        ax4.errorbar(vpvs_mean, vpvs_depth, xerr=vpvs_std, fmt="none",
+                     ecolor="k", elinewidth=1.5, capsize=3, alpha=1.0, zorder=8)
+
     ax4.plot(inputmodel["vs"], inputmodel["dep"], "r^-", lw=2.5, ms=10, label="Start Vs")
 
     # ax4.plot(inputmodel0["vs"], inputmodel0["dep"], "ko-", lw=2.5, ms=10, alpha=0.5, label="Input model")
