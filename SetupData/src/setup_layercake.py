@@ -587,6 +587,10 @@ def setup(stadata,Vel_dir,src_dir,query_sub,data_sub,in_sub):
         ff3.write(str(parameters.depth_step)+"\n")
         ff3.write(str(parameters.modout_plot_type)+"\n")
         ff3.write(str(parameters.MC_QC_thres)+"\n")
+        # line 11: higher-mode master switch (0 forces it off even if .hph exists)
+        ff3.write(str(getattr(parameters,'use_higher_mode',1))+"\n")
+        # line 12: higher-mode weight in the misfit
+        ff3.write(str(getattr(parameters,'hpw',1.0))+"\n")
     ff3.close()
  
 #     # --------------------------------------------------------------------------------------------------------

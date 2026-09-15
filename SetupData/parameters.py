@@ -221,4 +221,16 @@ depth_step=0.05;
 modout_plot_type=1; 
 # Threshold to use the goodmodel constrain function (1) or not (0) (force model in some way. Kinly check CALmodel.C/goodmodel) 
 MC_QC_thres=1; 
+# ---------------------------------------------------------------------------------
+# Higher-mode (1st overtone) Rayleigh phase velocity: MASTER SWITCH.
+#   1 = use it when the station has a non-empty {sta}.hph file (previous behaviour)
+#   0 = FORCE OFF for every station, even the ones that do have a .hph file
+# Written to in.connector line 11 and read back by MonteCarlo/00_make_file_control.sh,
+# which then decides whether to put "5 {sta}.hph" on the control file's disp line and
+# whether in.data lines 10-11 (higher-mode flag + weight) are 1/hpw or 0/0.0.
+use_higher_mode=1; 
+# Weight of the higher mode in the misfit, used only when use_higher_mode=1 and the
+# station has .hph. Was hard-coded to 1.0 inside 00_make_file_control.sh before.
+# NOTE: with is_equal_weight=1 the C++ requires phw+gvw+hvw+rfw+hpw == 1.
+hpw=1.0; 
 ############################################################ END ########################################################################

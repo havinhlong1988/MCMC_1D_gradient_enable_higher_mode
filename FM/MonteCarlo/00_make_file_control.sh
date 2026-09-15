@@ -31,8 +31,20 @@ mc_range=$(awk 'NR==7 { printf "%.2f\n", $1}' "$f0") # selection threshold value
 dstep=$(awk 'NR==8 { printf "%.1f\n", $1}' "$f0") # average step for final model
 plottype=$(awk 'NR==9 { printf "%d\n", $1}' "$f0") # plot style layercake or gradient
 mc_qc=$(awk 'NR==10 { printf "%d\n", $1}' "$f0") # model quality control flag (use goodmodel function to constrain the model)
-sedmonocheck=$(awk 'NR==11 { printf "%d\n", $1}' "$f0") # check the monochromatic increment of sedimentary
-crustmonocheck=$(awk 'NR==12 { printf "%d\n", $1}' "$f0") # check the monochromatic increment of crust
+# ---------------------------------------------------------------------------
+# Line 11: higher-mode MASTER SWITCH (SetupData/parameters.py -> use_higher_mode)
+#   1 = use the higher mode when {sta}.hph exists and is non-empty
+#   0 = FORCE OFF, even for stations that do have a .hph file
+# Line 12: the weight it gets in the misfit (parameters.py -> hpw).
+# Both default to the old hard-coded behaviour (on, weight 1.0) when the line is
+# missing, so in.connector files written before this change still work.
+# ---------------------------------------------------------------------------
+hpuse=$(awk 'NR==11 { printf "%d\n", $1}' "$f0")
+hpuse=${hpuse:-1}
+hpweight=$(awk 'NR==12 { printf "%s\n", $1}' "$f0")
+hpweight=${hpweight:-1.0}
+sedmonocheck=$(awk 'NR==13 { printf "%d\n", $1}' "$f0") # check the monochromatic increment of sedimentary (unused)
+crustmonocheck=$(awk 'NR==14 { printf "%d\n", $1}' "$f0") # check the monochromatic increment of crust (unused)
 
 # -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -93,13 +105,20 @@ fi
 # echo disp 1 3 1 $ff0 2 $ff1 3 $ff2 >> $fcontrol #1=Rayleigh,3=number of inputs [phase&group&H/V],1 --> phase file, 2--> group vel, 3 --> h/v file
 # higher-mode (1st) phase velocity: flag 5, file {sta}.hph (only when present & non-empty)
 ff7=$datadir"/"${sta}"_data/"${sta}.hph
-if [ -s "$ff7" ]; then
-    echo "HPH (higher-mode phase) file exist!"
+if [ -s "$ff7" ] && [ "$hpuse" -eq 1 ]; then
+    echo "HPH (higher-mode phase) file exist! -> higher mode ON (weight $hpweight)"
     echo disp 1 3 1 $ff0 3 $ff2 5 $ff7 >> $fcontrol #1=Rayleigh; 3 pairs: 1=phase,3=H/V,5=higher-mode phase
-    # ensure in.data has higher-mode flag (line 10) + weight (line 11) so compute_misfit fits it
-    awk 'NR<=9' "$ff5" > "$ff5.tmp"; echo 1 >> "$ff5.tmp"; echo 1.0 >> "$ff5.tmp"; mv "$ff5.tmp" "$ff5"
+    # in.data line 10 = higher-mode flag, line 11 = its weight, so compute_misfit fits it
+    awk 'NR<=9' "$ff5" > "$ff5.tmp"; echo 1 >> "$ff5.tmp"; echo "$hpweight" >> "$ff5.tmp"; mv "$ff5.tmp" "$ff5"
 else
+    if [ -s "$ff7" ]; then
+        echo "HPH file exists but use_higher_mode=0 (in.connector line 11) -> higher mode FORCED OFF"
+    fi
     echo disp 1 2 1 $ff0 3 $ff2 >> $fcontrol #1=Rayleigh; 2 pairs: 1=phase,3=H/V
+    # Write the flag/weight explicitly as 0 rather than dropping the lines: it makes
+    # the off state visible in in.data, and keeps the is_equal_weight=1 sum check
+    # (phw+gvw+hvw+rfw+hpw == 1) satisfiable.
+    awk 'NR<=9' "$ff5" > "$ff5.tmp"; echo 0 >> "$ff5.tmp"; echo 0.0 >> "$ff5.tmp"; mv "$ff5.tmp" "$ff5"
 fi
 echo rf $ff3 $gw >> $fcontrol #rf_file gaussian
 echo Qmodel $ff6 >> $fcontrol
