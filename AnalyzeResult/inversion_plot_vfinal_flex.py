@@ -50,6 +50,14 @@ PH_YLIM = (0.0, 5.0)
 
 POSTERIOR_VS_COLOR = "gray"
 POSTERIOR_VS_ALPHA = 0.10
+# Posterior clouds for the derived Vp and Vp/Vs profiles. Vp/Vs has its own
+# colour because it overlaps the Vs range (~2 km/s) on the same axis, so a grey
+# cloud there would be read as Vs. Set SHOW_VPVS_POSTERIOR = False to drop it.
+POSTERIOR_VP_COLOR = "lightblue"
+POSTERIOR_VP_ALPHA = 0.10
+SHOW_VPVS_POSTERIOR = True
+POSTERIOR_VPVS_COLOR = "mediumorchid"
+POSTERIOR_VPVS_ALPHA = 0.14
 POSTERIOR_RF_ALPHA = 0.20
 POSTERIOR_DISP_ALPHA = 0.50
 
@@ -763,6 +771,8 @@ def main():
     vp_depth = None   # ensemble-mean Vp model, plotted next to Vs
     vp_mean = None
     vp_std = None
+    vpvs_curves = None   # per-model Vp/Vs profiles on the common grid
+    vpvs_curve_depth = None
     if os.path.isfile(paths["posteriorfile_vp"]):
         try:
             posteriorVp, _ = read_posterior_vs_and_depth(
@@ -796,6 +806,13 @@ def main():
             vs_m, vs_s = vs_arr.mean(axis=0), vs_arr.std(axis=0)
             vp_m, vp_s = vp_arr.mean(axis=0), vp_arr.std(axis=0)
 
+            # Per-model Vp/Vs, so the posterior SPREAD of the ratio can be drawn
+            # and not just the mean +- sigma. These are the ratio of the two
+            # interpolated profiles, model by model.
+            with np.errstate(divide="ignore", invalid="ignore"):
+                vpvs_curves = np.where(vs_arr > 0.0, vp_arr / vs_arr, np.nan)
+            vpvs_curve_depth = grid
+
             ok = np.isfinite(vs_m) & np.isfinite(vp_m) & (vs_m > 0.0) & (vp_m > 0.0)
             vpvs_depth = dep_arr[ok]
             vp_depth = dep_arr[ok]
@@ -813,6 +830,7 @@ def main():
             print("[WARN] could not build the Vp/Vs profile: {}".format(exc))
             vpvs_depth = vpvs_mean = vpvs_std = None
             vp_depth = vp_mean = vp_std = None
+            vpvs_curves = vpvs_curve_depth = None
     elif posteriorVp is not None:
         print("[WARN] Vp ensemble size does not match Vs; skipping the Vp/Vs curve")
 
@@ -1018,7 +1036,11 @@ def main():
     # ---- Vp posterior cloud + ensemble Vp/Vs profile (p_flag=5 runs only) ----
     if posteriorVp is not None:
         for jj in range(len(posteriorVp) - 1):
-            ax1.plot(posteriorVp[jj], posteriordepth[jj], c="lightblue", alpha=0.10, lw=2)
+            ax1.plot(posteriorVp[jj], posteriordepth[jj], c=POSTERIOR_VP_COLOR, alpha=POSTERIOR_VP_ALPHA, lw=2)
+    if SHOW_VPVS_POSTERIOR and vpvs_curves is not None:
+        for jj in range(len(vpvs_curves)):
+            ax1.plot(vpvs_curves[jj], vpvs_curve_depth,
+                     c=POSTERIOR_VPVS_COLOR, alpha=POSTERIOR_VPVS_ALPHA, lw=2)
     if vp_mean is not None:
         # mantle Vp reaches ~7.5 km/s, past the default 7.0 x-limit
         vs_xlim = (VS_XLIM[0], max(VS_XLIM[1],
@@ -1132,7 +1154,11 @@ def main():
     # ---- Vp posterior cloud + ensemble Vp/Vs profile (p_flag=5 runs only) ----
     if posteriorVp is not None:
         for jj in range(len(posteriorVp) - 1):
-            ax4.plot(posteriorVp[jj], posteriordepth[jj], c="lightblue", alpha=0.10, lw=2)
+            ax4.plot(posteriorVp[jj], posteriordepth[jj], c=POSTERIOR_VP_COLOR, alpha=POSTERIOR_VP_ALPHA, lw=2)
+    if SHOW_VPVS_POSTERIOR and vpvs_curves is not None:
+        for jj in range(len(vpvs_curves)):
+            ax4.plot(vpvs_curves[jj], vpvs_curve_depth,
+                     c=POSTERIOR_VPVS_COLOR, alpha=POSTERIOR_VPVS_ALPHA, lw=2)
     if vp_mean is not None:
         _d, _v, _e, _md, _mv, _me = decimate_profile(vp_depth, vp_mean, vp_std, vs_ylim_shallow[1])
         ax4.plot(_v, _d, "c--", lw=2, zorder=7)   # x = velocity, y = depth

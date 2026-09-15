@@ -343,6 +343,30 @@ a solid blob.
 - Station with no `MC.{sta}.all.value_vp` at all: plots fine, no Vp curve.
 - Unreadable `mod.{sta}`: falls back to the old fixed limits with a warning.
 
+## 8. `<next commit>` — Posterior cloud for Vp/Vs
+
+**1 file** (`AnalyzeResult/inversion_plot_vfinal_flex.py`).
+
+Vs and Vp already had a posterior cloud behind their mean curve; Vp/Vs only had
+the mean ± sigma error bars. The per-model Vp/Vs profiles are now drawn as a
+cloud too, so the actual spread of the ratio is visible rather than just a
+symmetric error bar.
+
+The curves are the ratio of the two already-interpolated profiles, model by
+model, on the same common grid (`vp_arr / vs_arr`, guarded against Vs = 0), so
+they cost nothing extra to compute.
+
+Colour: `mediumorchid` at alpha 0.14. It needs its own colour because Vp/Vs
+(~1.5–2.3) overlaps the Vs range on the same axis, so a grey cloud there would
+read as Vs. The three cloud colours are now constants —
+`POSTERIOR_VS_COLOR`/`_ALPHA`, `POSTERIOR_VP_COLOR`/`_ALPHA`,
+`POSTERIOR_VPVS_COLOR`/`_ALPHA` — and `SHOW_VPVS_POSTERIOR = False` turns the
+new one off.
+
+Verified: FM 50 km and a CHT-style 15 km station both render it on the full and
+the zoom panel; a station with no `all.value_vp` skips it cleanly; the
+`SHOW_VPVS_POSTERIOR = False` path runs.
+
 ---
 
 ## Files changed on disk but **not** in git
