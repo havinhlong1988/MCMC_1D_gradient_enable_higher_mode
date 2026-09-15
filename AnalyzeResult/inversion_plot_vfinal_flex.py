@@ -202,22 +202,41 @@ def parse_inversion_flags(indatafile):
     return iph, igv, ihv, irf
 
 
+def read_connector_values(connectorfile):
+    """
+    Return the DATA lines of in.connector, in order.
+
+    Lines whose first non-blank character is "#", and blank lines, are skipped,
+    so the file can carry comments explaining each parameter without the
+    positions shifting.  A file with no comments reads exactly as before.
+    """
+    values = []
+    with open(connectorfile, "r") as fobj:
+        for line in fobj:
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            values.append(stripped)
+    return values
+
+
 def parse_plot_type(connectorfile, line_number=9):
+    # line_number counts DATA lines (comments and blanks skipped), not physical lines.
     if not os.path.isfile(connectorfile):
         die("Connector file does not exist: {}".format(connectorfile))
 
-    with open(connectorfile, "r") as fobj:
-        for i, line in enumerate(fobj, start=1):
-            if i == line_number:
-                parts = line.strip().split()
-                if not parts:
-                    die("Empty plot_type line in {}".format(connectorfile))
-                try:
-                    return int(parts[0])
-                except ValueError:
-                    die("Invalid plot_type in line {} of {}".format(line_number, connectorfile))
+    values = read_connector_values(connectorfile)
+    if len(values) < line_number:
+        die("Could not read value {} from {} (only {} data lines)".format(
+            line_number, connectorfile, len(values)))
 
-    die("Could not read line {} from {}".format(line_number, connectorfile))
+    parts = values[line_number - 1].split()
+    if not parts:
+        die("Empty plot_type entry in {}".format(connectorfile))
+    try:
+        return int(parts[0])
+    except ValueError:
+        die("Invalid plot_type (value {}) in {}".format(line_number, connectorfile))
 
 
 def parse_report_files(reportfiletmp, reportfile):

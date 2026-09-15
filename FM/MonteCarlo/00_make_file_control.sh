@@ -20,31 +20,48 @@ sta=$1
 f0=$datadir"/"${sta}"_data/in.connector"
 echo $f0    
 #
-# gw=`echo ${f0} | awk 'NR==1 { printf "%2.1f" $1}'`
-invtype=$(awk 'NR==1 { printf "%.1f\n", $1 }' "$f0") # inversion style 1  or 2
-gw=$(awk 'NR==2 { printf "%.1f\n", $1 }' "$f0") # gaussian width for RF
-njumps=$(awk 'NR==3 { printf "%d\n", $1 }' "$f0") # Number of jump
-nruns=$(awk 'NR==4 { printf "%d\n", $1 }' "$f0") # number of inversion model
-nthread=$(awk 'NR==5 { printf "%d\n", $1}' "$f0") # number of cores use
-selstyle=$(awk 'NR==6 { printf "%d\n", $1}' "$f0") # selection style: -1 percentage, 1 absolute(min misfit + value)
-mc_range=$(awk 'NR==7 { printf "%.2f\n", $1}' "$f0") # selection threshold value (percent if selstyle=-1, absolute offset if selstyle=1)
-dstep=$(awk 'NR==8 { printf "%.1f\n", $1}' "$f0") # average step for final model
-plottype=$(awk 'NR==9 { printf "%d\n", $1}' "$f0") # plot style layercake or gradient
-mc_qc=$(awk 'NR==10 { printf "%d\n", $1}' "$f0") # model quality control flag (use goodmodel function to constrain the model)
 # ---------------------------------------------------------------------------
-# Line 11: higher-mode MASTER SWITCH (SetupData/parameters.py -> use_higher_mode)
-#   1 = use the higher mode when {sta}.hph exists and is non-empty
-#   0 = FORCE OFF, even for stations that do have a .hph file
-# Line 12: the weight it gets in the misfit (parameters.py -> hpw).
-# Both default to the old hard-coded behaviour (on, weight 1.0) when the line is
-# missing, so in.connector files written before this change still work.
+# in.connector reader.
+#
+# Values are addressed by their POSITION AMONG THE DATA LINES, not by physical
+# line number: every line whose first non-blank character is '#', and every
+# blank line, is skipped.  That lets SetupData write a commented, self-
+# documenting in.connector without the numbering shifting, and lets you add
+# your own notes to it by hand.
+#
+# A file with no comments at all (anything written before this change) reads
+# exactly as it did, because filtering then removes nothing.
+#
+#   conn_get <position> <printf-format>
+# prints nothing when that position does not exist, so a missing optional value
+# leaves the shell variable empty and the ${var:-default} below takes over.
 # ---------------------------------------------------------------------------
-hpuse=$(awk 'NR==11 { printf "%d\n", $1}' "$f0")
+conn_get () {
+  awk -v want="$1" -v fmt="$2" \
+      '!/^[[:space:]]*#/ && NF { n++; if (n==want) { printf fmt"\n", $1; exit } }' "$f0"
+}
+
+invtype=$(conn_get 1 "%.1f")   # inversion style 1 or 2
+gw=$(conn_get 2 "%.1f")        # gaussian width for RF
+njumps=$(conn_get 3 "%d")      # Number of jump
+nruns=$(conn_get 4 "%d")       # number of inversion model
+nthread=$(conn_get 5 "%d")     # number of cores use
+selstyle=$(conn_get 6 "%d")    # selection style: -1 percentage, 1 absolute(min misfit + value)
+mc_range=$(conn_get 7 "%.2f")  # selection threshold value (percent if selstyle=-1, absolute offset if selstyle=1)
+dstep=$(conn_get 8 "%.1f")     # average step for final model
+plottype=$(conn_get 9 "%d")    # plot style layercake or gradient
+mc_qc=$(conn_get 10 "%d")      # model quality control flag (use goodmodel function to constrain the model)
+# 11: higher-mode MASTER SWITCH (SetupData/parameters.py -> use_higher_mode)
+#     1 = use the higher mode when {sta}.hph exists and is non-empty
+#     0 = FORCE OFF, even for stations that do have a .hph file
+# 12: the weight it gets in the misfit (parameters.py -> hpw)
+# Both fall back to the old hard-coded behaviour when absent.
+hpuse=$(conn_get 11 "%d")
 hpuse=${hpuse:-1}
-hpweight=$(awk 'NR==12 { printf "%s\n", $1}' "$f0")
+hpweight=$(conn_get 12 "%s")
 hpweight=${hpweight:-1.0}
-sedmonocheck=$(awk 'NR==13 { printf "%d\n", $1}' "$f0") # check the monochromatic increment of sedimentary (unused)
-crustmonocheck=$(awk 'NR==14 { printf "%d\n", $1}' "$f0") # check the monochromatic increment of crust (unused)
+sedmonocheck=$(conn_get 13 "%d")   # monochromatic increment of sedimentary (unused)
+crustmonocheck=$(conn_get 14 "%d") # monochromatic increment of crust (unused)
 
 # -----------------------------------------------------------------------------------------------------------------------------------
 

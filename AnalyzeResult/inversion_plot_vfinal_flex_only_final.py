@@ -82,17 +82,22 @@ print("making figure for station: ",sta)
 # plot_type = 0: layer-cake model
 # plot_type = 1: gradient model (with B-spline)
 # Now we can check plot_type in data/{sta}_data/in.connector
+# Comments ("#") and blank lines in in.connector are skipped, so plot_type is
+# the 9th DATA line rather than the 9th physical line.
+_conn_values = []
 with open(connectorfile, 'r') as file:
-    for i, line in enumerate(file, start=1):
-        if i == 9:
-            try:
-                # Split the line into individual values and convert them to integers
-                plot_type = [int(value) for value in line.strip().split()]
-                plot_type = int(plot_type[0]); 
-            except ValueError:
-                # Handle the case where a value cannot be converted to an integer
-                print(f"Skipping invalid value in line {i}: {line.strip()}")
-            break  # Exit the loop once the target line is processed
+    for line in file:
+        _s = line.strip()
+        if not _s or _s.startswith("#"):
+            continue
+        _conn_values.append(_s)
+if len(_conn_values) >= 9:
+    try:
+        plot_type = int(_conn_values[8].split()[0]); 
+    except (ValueError, IndexError):
+        print(f"Skipping invalid plot_type value in {connectorfile}: {_conn_values[8]}")
+else:
+    print(f"{connectorfile} has only {len(_conn_values)} data lines; cannot read plot_type")
 file.close()
 # print("Plot type: ",plot_type)
 # time.sleep(5)
