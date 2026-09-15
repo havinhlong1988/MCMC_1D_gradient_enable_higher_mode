@@ -13,6 +13,30 @@ def main():
         sys.exit(0)
     project_dir = str(sys.argv[1])
     print("Setup data for project directory: ",project_dir)
+    # ----------------------------------------------------------------------
+    # Optional per-project overrides: SetupData/parameters_{project}.py
+    #
+    # parameters.py is shared by every project, but CHT (shallow, sub-1 s data,
+    # 15 km model) and FM (crustal, 3-40 s data, 50 km model) need different
+    # velocity models, sub-layer steps, data weights and RF gaussian.  Any
+    # top-level name defined in the override file replaces the value in
+    # parameters (for this run only, in memory -- parameters.py is not edited).
+    # No override file -> nothing changes, so CHT behaves exactly as before.
+    # ----------------------------------------------------------------------
+    override_name = "parameters_%s" % project_dir
+    override_path = os.path.join(os.getcwd(), override_name + ".py")
+    if os.path.isfile(override_path):
+        import importlib
+        override = importlib.import_module(override_name)
+        applied = []
+        for key in dir(override):
+            if key.startswith("__"):
+                continue
+            setattr(parameters, key, getattr(override, key))
+            applied.append(key)
+        print("Applied %s: %s" % (override_name + ".py", ", ".join(sorted(applied))))
+    else:
+        print("No per-project override (%s not found) - using parameters.py as is" % override_path)
     # Now access model information and data directory
     pwd = os.getcwd()
     #

@@ -10,7 +10,9 @@ echo " If no -> Press Ctrl + C to abort"
 echo ""
 read -p "Press any key to continue... " -n1 -s
 #
-project_dir="CHT"
+# Project directory: pass it as the first argument, e.g. "bash 01_prepare_data.sh CHT".
+# Defaults to FM (the active project); pass CHT to go back to the old one.
+project_dir="${1:-FM}"
 #
 cd SetupData/
 python main.py $project_dir

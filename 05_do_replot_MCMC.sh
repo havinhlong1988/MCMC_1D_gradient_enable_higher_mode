@@ -1,4 +1,7 @@
-cd CHT/MonteCarlo
+# Project directory: pass it as the first argument, e.g. "bash 05_do_replot_MCMC.sh CHT".
+# Defaults to FM (the active project); pass CHT to go back to the old one.
+project_dir="${1:-FM}"
+cd "$project_dir/MonteCarlo"
 
 for sta in $(awk '{print $1}' ../sta_now)
 do

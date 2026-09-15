@@ -1,0 +1,20 @@
+model /Users/vinhlongha/Research/MCMC/MCMC_1D_gradient_enable_higher_mode/FM/data/121.475-24.9_data/mod.121.475-24.9
+para /Users/vinhlongha/Research/MCMC/MCMC_1D_gradient_enable_higher_mode/FM/data/121.475-24.9_data/in.para_121.475-24.9
+disp 1 2 1 /Users/vinhlongha/Research/MCMC/MCMC_1D_gradient_enable_higher_mode/FM/data/121.475-24.9_data/121.475-24.9.ph 3 /Users/vinhlongha/Research/MCMC/MCMC_1D_gradient_enable_higher_mode/FM/data/121.475-24.9_data/121.475-24.9.HV
+rf /Users/vinhlongha/Research/MCMC/MCMC_1D_gradient_enable_higher_mode/FM/data/121.475-24.9_data/121.475-24.9.RF 3.0
+Qmodel /Users/vinhlongha/Research/MCMC/MCMC_1D_gradient_enable_higher_mode/FM/MonteCarlo/indata/Qmodel.dat
+p 0.5
+mono 1
+monol 2
+gradl
+tt 12
+jt 10000
+outdir 121.475-24.9 121.475-24.9 -2
+n_thread 1
+indata /Users/vinhlongha/Research/MCMC/MCMC_1D_gradient_enable_higher_mode/FM/data/121.475-24.9_data/in.data_121.475-24.9
+selstyle -1
+mc_range 10.00
+dstep 0.1
+plottype 1
+invtype 1.0
+end
