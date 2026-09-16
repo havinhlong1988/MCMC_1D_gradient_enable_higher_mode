@@ -447,6 +447,65 @@ monotonicity but never the ratio. The fix is documented beside the setting in
 `parameters.py` — switch crust and mantle Vp/Vs to absolute style with a range
 near 0.25 — but it changes the prior, so it is left as a decision, not made.
 
+## 11. Fundamental-mode-only control run
+
+`CHT/MonteCarlo` archived to **`CHT/MonteCarlo_hph`** (135 MB), then
+`use_higher_mode = 0` in `parameters_CHT.py`, SetupData rerun, and both stations
+rerun. The `.hph` files were left in place — this exercises the force-off path.
+
+```
+00740: HPH file exists but use_higher_mode=0 -> higher mode FORCED OFF
+   disp        : disp 1 2 1 00740.ph 3 indata/in.hv      (no "5 .hph")
+   in.data 10/11: 0  0.0
+```
+
+### Results
+
+| | higher mode ON | fundamental only |
+|---|---|---|
+| 00740 models / min misfit | 120 / 3.515 | 378 / 1.769 |
+| 00990 models / min misfit | 485 / 4.819 | 359 / 1.064 |
+
+The min-misfit numbers are **not comparable** — with higher mode on the misfit
+carries two terms (`phw*tmfp + hpw*tmfhp`, both weighted 1.0), off it carries
+one. The like-for-like number is the fundamental Vph chi-RMS of the
+ensemble-mean prediction:
+
+| station | higher mode ON | fundamental only |
+|---|---|---|
+| 00740 | 2.329 | **1.885** |
+| 00990 | 2.790 | **2.096** |
+
+Dropping the higher mode fits Vph better, as expected — nothing is competing
+with it. Higher-mode chi-RMS in the ON run was 1.770 (00740) and 2.434 (00990).
+
+### Effect on structure
+
+Ensemble-mean Vs, fundamental-only minus higher-mode (km/s):
+
+| station | 0–1.5 km | 1.5–5 km | 5–10 km | 10–15 km | max |
+|---|---|---|---|---|---|
+| 00740 | +1.028 | +1.791 | +0.414 | +0.033 | +2.042 at 2.7 km |
+| 00990 | −0.227 | −0.088 | +0.063 | +0.047 | −0.324 at 1.1 km |
+
+At **00740 the higher mode changes the shallow model enormously** — without it
+the inversion puts Vs 1–2 km/s higher in the top 5 km. 00990 barely moves.
+Caveat: the posteriors are broad (mean sigma 0.77–0.83 km/s), so the 00740
+difference is roughly 2.5 sigma rather than decisive.
+
+### Bug found: stale higher-mode curves
+
+`plot_hpmode_check.py` drew a "Minmisfit Vph (higher)" curve fitting the
+higher-mode data for a run that never computed one. The post-process rewrites
+`MC.*.all.hp` as empty when higher mode is off but does **not** clear
+`MC.*.minmisfit.hp.disp`, `MC.*.mean.hp` or `MC.*.acc.average.hp.disp`, so those
+survived from the 19:04 run and were plotted as current — timestamps confirmed
+it (`all.hp` 22:09, the rest 19:04).
+
+Fixed by gating every higher-mode curve on `all.hp`, the run's own record of
+whether the higher mode was inverted, and by making the title say "fundamental
+only" instead of promising "fundamental + higher mode".
+
 ---
 
 ## Files changed on disk but **not** in git

@@ -22,6 +22,6 @@
 # 10. model quality control: 1 = use CALmodel.C/goodmodel, 0 = free walk
 1
 # 11. higher mode: 1 = use {sta}.hph when present, 0 = FORCE OFF everywhere
-1
+0
 # 12. higher-mode weight in the misfit (used only when the line above is 1)
 1.0
