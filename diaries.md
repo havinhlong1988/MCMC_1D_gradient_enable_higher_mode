@@ -393,6 +393,60 @@ excluding this one would be an inconsistent convention rather than a decision.
 If repository size becomes a problem the fix is `MC.*.out` in `.gitignore` plus
 `git rm --cached` on all seven — that applies to the CHT logs too.
 
+## 10. `dae4b12` / `6028bd5` / `142aecc` — Back to CHT, 2 stations, 15 km
+
+### Switch
+
+Drivers default back to CHT (`bash 02_do_MCMC.sh` = CHT, `... FM` = FM). New
+`SetupData/parameters_CHT.py` pins `MC_number_of_cores = 1`: `MC.C` calls the
+Fortran forward **without** the OpenMP critical section, so threads share the
+Fortran COMMON blocks — measured at 4/6 runs dying at 4 threads on this Mac, and
+worse, it can corrupt results silently instead of crashing. Cost: ~36 min per
+station instead of ~10.
+
+### All 135 CHT stations regenerated
+
+`00990` was still `p_flag=3` while `00740` was already `p_flag=5`, so the two
+run stations were not comparable. Rerunning SetupData for the whole project also
+**closes the open item from section 3** — the array is no longer a 17/118 mix.
+Model depth unchanged at 15 km (5 + 10); it comes from the velocity model.
+
+### Run
+
+```
+tt 12, jt 10000, 1 thread, 15 km, higher mode ON (both have .hph)
+
+station   models   min misfit   elapsed
+00740     120      3.515223     35m34s
+00990     485      4.819407     35m54s
+```
+
+Both reached `post process finish checkpoint matched`. Thickness ratios still
+sum to `1.000000` (0.999998–1.000002) at both, so Vp/Vs is not being swept into
+the ratio simplex on real data either. Figures on the new axes: 0–15 km full,
+0–1.5 km zoom.
+
+### Plot fix found by this run
+
+Cloud alpha is per curve, so N overlapping curves stack to ~N×alpha of ink. The
+values were tuned at ~60 models; 00990 has **485** and the derived Vp and Vp/Vs
+clouds saturated into a solid block hiding the Vs cloud behind them.
+`cloud_alpha()` now caps the effective alpha at `CLOUD_INK/N`.
+
+### ⚠ Finding: a quarter of the sampled Vp/Vs is physically impossible
+
+| station | samples below √2 = 1.414 |
+|---|---|
+| 00740 | 184 of 720 (**25.6 %**) |
+| 00990 | 696 of 2910 (**23.9 %**) |
+
+Below √2 the Poisson's ratio is **negative**. This is the inherited prior
+flagged in section 1: percentage style ±40 % with no physical floor
+(`mod2para` skips the clamp for type `-1`) and `goodmodel` checks Vp
+monotonicity but never the ratio. The fix is documented beside the setting in
+`parameters.py` — switch crust and mantle Vp/Vs to absolute style with a range
+near 0.25 — but it changes the prior, so it is left as a decision, not made.
+
 ---
 
 ## Files changed on disk but **not** in git
@@ -441,8 +495,9 @@ copy**, never in place:
 
 ## Open items
 
-1. **CHT is half-converted** — 17 of 135 stations in the new `p_flag=5` format.
-   Finish with `bash 01_prepare_data.sh CHT` and commit, or `git revert 20df7b0`.
+1. ~~CHT half-converted~~ — **done** in `6028bd5`, all 135 stations converted.
+   Remaining: decide on the Vp/Vs prior (see section 10) — a quarter of the
+   sampled values are below √2.
 2. **Nothing is pushed.** `git push origin main fix/macos-portability`.
 3. `main` is behind the working branch again — it was fast-forwarded once, at
    `6c6db0e`, and three commits have landed since.
