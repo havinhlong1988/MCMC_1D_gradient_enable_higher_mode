@@ -56,6 +56,11 @@ POSTERIOR_VS_ALPHA = 0.10
 POSTERIOR_VP_COLOR = "lightblue"
 POSTERIOR_VP_ALPHA = 0.10
 SHOW_VPVS_POSTERIOR = True
+# Cloud alpha is per-curve, so N overlapping curves stack to roughly N*alpha of
+# ink. The tuned values above suit ~60 posterior models; at 485 (CHT 00990) the
+# derived clouds saturate into a solid block that hides everything behind them.
+# The effective alpha is therefore capped at CLOUD_INK/N.
+CLOUD_INK = 8.0
 POSTERIOR_VPVS_COLOR = "mediumorchid"
 POSTERIOR_VPVS_ALPHA = 0.14
 POSTERIOR_RF_ALPHA = 0.20
@@ -396,6 +401,13 @@ def read_model_total_thickness(modfile):
     except Exception as exc:
         print("[WARN] could not read the model depth from {}: {}".format(modfile, exc))
         return None
+
+
+def cloud_alpha(base_alpha, n_curves):
+    """Per-curve alpha that keeps the total ink roughly constant with N."""
+    if not n_curves or n_curves <= 0:
+        return base_alpha
+    return max(0.02, min(base_alpha, CLOUD_INK / float(n_curves)))
 
 
 def decimate_profile(depth, value, err, dmax, n_markers=25):
@@ -1036,11 +1048,11 @@ def main():
     # ---- Vp posterior cloud + ensemble Vp/Vs profile (p_flag=5 runs only) ----
     if posteriorVp is not None:
         for jj in range(len(posteriorVp) - 1):
-            ax1.plot(posteriorVp[jj], posteriordepth[jj], c=POSTERIOR_VP_COLOR, alpha=POSTERIOR_VP_ALPHA, lw=2)
+            ax1.plot(posteriorVp[jj], posteriordepth[jj], c=POSTERIOR_VP_COLOR, alpha=cloud_alpha(POSTERIOR_VP_ALPHA, len(posteriorVp)), lw=2)
     if SHOW_VPVS_POSTERIOR and vpvs_curves is not None:
         for jj in range(len(vpvs_curves)):
             ax1.plot(vpvs_curves[jj], vpvs_curve_depth,
-                     c=POSTERIOR_VPVS_COLOR, alpha=POSTERIOR_VPVS_ALPHA, lw=2)
+                     c=POSTERIOR_VPVS_COLOR, alpha=cloud_alpha(POSTERIOR_VPVS_ALPHA, len(vpvs_curves)), lw=2)
     if vp_mean is not None:
         # mantle Vp reaches ~7.5 km/s, past the default 7.0 x-limit
         vs_xlim = (VS_XLIM[0], max(VS_XLIM[1],
@@ -1154,11 +1166,11 @@ def main():
     # ---- Vp posterior cloud + ensemble Vp/Vs profile (p_flag=5 runs only) ----
     if posteriorVp is not None:
         for jj in range(len(posteriorVp) - 1):
-            ax4.plot(posteriorVp[jj], posteriordepth[jj], c=POSTERIOR_VP_COLOR, alpha=POSTERIOR_VP_ALPHA, lw=2)
+            ax4.plot(posteriorVp[jj], posteriordepth[jj], c=POSTERIOR_VP_COLOR, alpha=cloud_alpha(POSTERIOR_VP_ALPHA, len(posteriorVp)), lw=2)
     if SHOW_VPVS_POSTERIOR and vpvs_curves is not None:
         for jj in range(len(vpvs_curves)):
             ax4.plot(vpvs_curves[jj], vpvs_curve_depth,
-                     c=POSTERIOR_VPVS_COLOR, alpha=POSTERIOR_VPVS_ALPHA, lw=2)
+                     c=POSTERIOR_VPVS_COLOR, alpha=cloud_alpha(POSTERIOR_VPVS_ALPHA, len(vpvs_curves)), lw=2)
     if vp_mean is not None:
         _d, _v, _e, _md, _mv, _me = decimate_profile(vp_depth, vp_mean, vp_std, vs_ylim_shallow[1])
         ax4.plot(_v, _d, "c--", lw=2, zorder=7)   # x = velocity, y = depth

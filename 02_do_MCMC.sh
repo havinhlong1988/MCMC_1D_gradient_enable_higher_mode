@@ -59,9 +59,9 @@ echo "-----------------------------------------------"
 echo "Run the MCMC inversion for loop of station !!!"
 echo "-----------------------------------------------"
 
-# Project directory: pass it as the first argument, e.g. "bash 02_do_MCMC.sh CHT".
-# Defaults to FM (the active project); pass CHT to go back to the old one.
-project_dir="${1:-FM}"
+# Project directory: pass it as the first argument, e.g. "bash 02_do_MCMC.sh FM".
+# Defaults to CHT (the active project); pass FM to switch to the other one.
+project_dir="${1:-CHT}"
 cd "$project_dir/MonteCarlo"
 num_try=20; # If run false - then try again until $num_try times
 for sta in $(awk '{print $1}' ../sta_now)
