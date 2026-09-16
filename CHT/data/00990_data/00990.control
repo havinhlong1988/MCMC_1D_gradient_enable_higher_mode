@@ -10,7 +10,7 @@ gradl
 tt 12
 jt 10000
 outdir 00990 00990 -2
-n_thread 5
+n_thread 1
 indata /Users/vinhlongha/Research/MCMC/MCMC_1D_gradient_enable_higher_mode/CHT/data/00990_data/in.data_00990
 selstyle -1
 mc_range 10.00
