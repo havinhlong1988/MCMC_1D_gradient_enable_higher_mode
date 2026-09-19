@@ -88,6 +88,23 @@ mmf_h = load("minmisfit.hp.disp")
 post_p = load_ensemble("all.ph")   # fundamental posterior ensemble
 post_h = load_ensemble("all.hp")   # higher-mode posterior ensemble
 
+# ---------------------------------------------------------------------------
+# Higher mode can be switched off for a station that still HAS a {sta}.hph file
+# (in.connector line 11 / parameters.use_higher_mode = 0).  The post-process
+# then rewrites MC.*.all.hp as empty but does NOT clear the other higher-mode
+# outputs, so MC.*.minmisfit.hp.disp, MC.*.mean.hp and MC.*.acc.average.hp.disp
+# survive from whatever run last produced them.  Plotting those would show a
+# higher-mode curve this run never computed -- a stale result presented as a
+# current one.  all.hp is the run's own record of whether the higher mode was
+# inverted, so gate every higher-mode curve on it.
+# ---------------------------------------------------------------------------
+if post_h is None:
+    if any(x is not None for x in (acc_h, mmf_h)):
+        print("higher mode is OFF for this run (MC.*.all.hp is empty); ignoring "
+              "the stale .hp.disp / mean.hp files left by an earlier run")
+    acc_h = None
+    mmf_h = None
+
 if acc_p is None and mmf_p is None and acc_h is None and mmf_h is None:
     sys.exit("No .p.disp/.hp.disp output found in {}".format(sdir))
 
@@ -180,8 +197,8 @@ if yvals:
 
 ax.set_xlabel("Period (s)")
 ax.set_ylabel("Rayleigh phase velocity Vph (km/s)")
-ax.set_title("Station {} - Vph fit (zoom): observed vs predicted, "
-             "fundamental + higher mode".format(sta))
+ax.set_title("Station {} - Vph fit (zoom): observed vs predicted, {}".format(
+    sta, "fundamental + higher mode" if post_h is not None else "fundamental only"))
 ax.grid(True, alpha=0.3)
 ax.legend(fontsize=8, ncol=2, loc="best")
 

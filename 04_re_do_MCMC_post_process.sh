@@ -59,9 +59,9 @@ echo "-----------------------------------------------"
 echo "Re-do the MCMC post process for loop of station !!!"
 echo "-----------------------------------------------"
 
-# Project directory: pass it as the first argument, e.g. "bash 04_re_do_MCMC_post_process.sh CHT".
-# Defaults to FM (the active project); pass CHT to go back to the old one.
-project_dir="${1:-FM}"
+# Project directory: pass it as the first argument, e.g. "bash 04_re_do_MCMC_post_process.sh FM".
+# Defaults to CHT (the active project); pass FM to switch to the other one.
+project_dir="${1:-CHT}"
 cd "$project_dir/MonteCarlo"
 
 for sta in $(awk '{print $1}' ../sta_now)

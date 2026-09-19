@@ -18,6 +18,7 @@ All the input file included in "build_paths" function
 
 import os
 import sys
+import math
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -33,8 +34,15 @@ FIGSIZE_MISFIT = (5, 5)
 DPI = 300
 
 VS_XLIM = (0.0, 7.0)
+# Depth range of the model panels.
+# These are only FALLBACKS. The real range is taken from the starting model
+# (sum of the group thicknesses in mod.{sta}), so a 50 km FM model and a 15 km
+# CHT model each get their own axis without editing anything here.
 VS_YLIM_FULL = (0.0, 10.0)
 VS_YLIM_SHALLOW = (0.0, 2.0)
+# The zoom panel covers this fraction of the full model depth
+# (0.10 -> 5 km for a 50 km model, 1.5 km for a 15 km model).
+ZOOM_FRACTION = 0.10
 
 RF_YLIM = (-0.25, 0.6)
 HV_YLIM = (0.0, 2.0)
@@ -42,6 +50,19 @@ PH_YLIM = (0.0, 5.0)
 
 POSTERIOR_VS_COLOR = "gray"
 POSTERIOR_VS_ALPHA = 0.10
+# Posterior clouds for the derived Vp and Vp/Vs profiles. Vp/Vs has its own
+# colour because it overlaps the Vs range (~2 km/s) on the same axis, so a grey
+# cloud there would be read as Vs. Set SHOW_VPVS_POSTERIOR = False to drop it.
+POSTERIOR_VP_COLOR = "lightblue"
+POSTERIOR_VP_ALPHA = 0.10
+SHOW_VPVS_POSTERIOR = True
+# Cloud alpha is per-curve, so N overlapping curves stack to roughly N*alpha of
+# ink. The tuned values above suit ~60 posterior models; at 485 (CHT 00990) the
+# derived clouds saturate into a solid block that hides everything behind them.
+# The effective alpha is therefore capped at CLOUD_INK/N.
+CLOUD_INK = 8.0
+POSTERIOR_VPVS_COLOR = "mediumorchid"
+POSTERIOR_VPVS_ALPHA = 0.14
 POSTERIOR_RF_ALPHA = 0.20
 POSTERIOR_DISP_ALPHA = 0.50
 
@@ -359,6 +380,68 @@ def read_posterior_rf_blocks(posteriorfilerf):
         posteriorfval.append(np.atleast_1d(rftmp))
 
     return posteriorrftime, posteriorfval
+
+
+def read_model_total_thickness(modfile):
+    """
+    Total depth of the starting 1D model: the sum of the group thicknesses,
+    column 3 of mod.{sta}. 30 + 20 -> 50 km for FM, 5 + 10 -> 15 km for CHT.
+    Returns None when the file cannot be read, so the caller can fall back to
+    the hard-coded limits.
+    """
+    try:
+        total = 0.0
+        with open(modfile, "r") as fobj:
+            for line in fobj:
+                parts = line.split()
+                if len(parts) < 3:
+                    continue
+                total += float(parts[2])
+        return total if total > 0.0 else None
+    except Exception as exc:
+        print("[WARN] could not read the model depth from {}: {}".format(modfile, exc))
+        return None
+
+
+def cloud_alpha(base_alpha, n_curves):
+    """Per-curve alpha that keeps the total ink roughly constant with N."""
+    if not n_curves or n_curves <= 0:
+        return base_alpha
+    return max(0.02, min(base_alpha, CLOUD_INK / float(n_curves)))
+
+
+def decimate_profile(depth, value, err, dmax, n_markers=25):
+    """
+    Trim a profile to 0..dmax and thin it to about n_markers points.
+
+    The ensemble Vp / Vp/Vs profiles are built on a 400-point grid, which is
+    right for the output file but turns into a solid blob of markers and error
+    bars when drawn. The curve itself is still drawn at full resolution; only
+    the markers and error bars are thinned, and the thinning is done per panel
+    so the zoom panel keeps its own markers.
+    """
+    depth = np.asarray(depth, dtype=float)
+    mask = depth <= float(dmax) * 1.0001
+    d, v, e = depth[mask], np.asarray(value)[mask], np.asarray(err)[mask]
+    if d.size == 0:
+        return d, v, e, d, v, e
+    step = max(1, int(d.size // max(1, n_markers)))
+    return d, v, e, d[::step], v[::step], e[::step]
+
+
+def depth_ticks(dmax, n_target=10):
+    """Roughly n_target ticks from 0 to dmax, snapped to a 1/2/2.5/5 x 10^k step."""
+    if not dmax or dmax <= 0:
+        return None
+    raw = float(dmax) / float(n_target)
+    k = math.floor(math.log10(raw))
+    base = 10.0 ** k
+    step = 10.0 * base
+    for m in (1.0, 2.0, 2.5, 5.0):
+        if raw <= m * base:
+            step = m * base
+            break
+    return np.arange(0.0, dmax + step * 0.5, step)
 
 
 def read_posterior_vs_and_depth(posteriorfile, plot_type, depthfile=None):
@@ -697,6 +780,11 @@ def main():
     vpvs_depth = None
     vpvs_mean = None
     vpvs_std = None
+    vp_depth = None   # ensemble-mean Vp model, plotted next to Vs
+    vp_mean = None
+    vp_std = None
+    vpvs_curves = None   # per-model Vp/Vs profiles on the common grid
+    vpvs_curve_depth = None
     if os.path.isfile(paths["posteriorfile_vp"]):
         try:
             posteriorVp, _ = read_posterior_vs_and_depth(
@@ -707,29 +795,54 @@ def main():
             posteriorVp = None
 
     if posteriorVp is not None and len(posteriorVp) == len(posteriorVs) and len(posteriorVs) > 0:
-        # Ensemble Vp/Vs at every depth node, with gaussian error propagation:
+        # Ensemble Vp/Vs, with gaussian error propagation:
         #   R = Vp/Vs ,  sigma_R = R * sqrt((sVp/Vp)^2 + (sVs/Vs)^2)
+        #
+        # Posterior models do NOT share a depth grid: the layer thicknesses are
+        # inverted for, so this station's 56 models carry 116 to 194 nodes each
+        # even though every one of them reaches 50 km. Averaging node-by-node
+        # would silently truncate the profile to the SHORTEST model (28.85 km
+        # here), so every model is interpolated onto one common grid first.
         try:
-            nnode = min(min(len(a) for a in posteriorVs), min(len(a) for a in posteriorVp))
-            vs_arr = np.array([np.asarray(a)[:nnode] for a in posteriorVs], dtype=float)
-            vp_arr = np.array([np.asarray(a)[:nnode] for a in posteriorVp], dtype=float)
-            dep_arr = np.asarray(posteriordepth[0])[:nnode].astype(float)
+            dmax = min(float(np.asarray(d)[-1]) for d in posteriordepth)
+            grid = np.linspace(0.0, dmax, 400)
+
+            vs_arr = np.array([np.interp(grid, np.asarray(d, dtype=float),
+                                         np.asarray(v, dtype=float))
+                               for d, v in zip(posteriordepth, posteriorVs)])
+            vp_arr = np.array([np.interp(grid, np.asarray(d, dtype=float),
+                                         np.asarray(v, dtype=float))
+                               for d, v in zip(posteriordepth, posteriorVp)])
+            dep_arr = grid
 
             vs_m, vs_s = vs_arr.mean(axis=0), vs_arr.std(axis=0)
             vp_m, vp_s = vp_arr.mean(axis=0), vp_arr.std(axis=0)
 
+            # Per-model Vp/Vs, so the posterior SPREAD of the ratio can be drawn
+            # and not just the mean +- sigma. These are the ratio of the two
+            # interpolated profiles, model by model.
+            with np.errstate(divide="ignore", invalid="ignore"):
+                vpvs_curves = np.where(vs_arr > 0.0, vp_arr / vs_arr, np.nan)
+            vpvs_curve_depth = grid
+
             ok = np.isfinite(vs_m) & np.isfinite(vp_m) & (vs_m > 0.0) & (vp_m > 0.0)
             vpvs_depth = dep_arr[ok]
+            vp_depth = dep_arr[ok]
+            vp_mean = vp_m[ok]
+            vp_std = vp_s[ok]
             vpvs_mean = vp_m[ok] / vs_m[ok]
             vpvs_std = vpvs_mean * np.sqrt((vp_s[ok] / vp_m[ok]) ** 2 + (vs_s[ok] / vs_m[ok]) ** 2)
 
             with open(paths["out_avg_vp_txt"], "w") as fobj:
                 for i in range(len(vpvs_depth)):
                     fobj.write("{} {} {}\n".format(vpvs_depth[i], vp_m[ok][i], vpvs_mean[i]))
-            print("Vp/Vs profile written to {}".format(paths["out_avg_vp_txt"]))
+            print("Vp/Vs profile written to {} ({} points, 0-{:g} km)".format(
+                paths["out_avg_vp_txt"], len(vpvs_depth), dep_arr[-1]))
         except Exception as exc:
             print("[WARN] could not build the Vp/Vs profile: {}".format(exc))
             vpvs_depth = vpvs_mean = vpvs_std = None
+            vp_depth = vp_mean = vp_std = None
+            vpvs_curves = vpvs_curve_depth = None
     elif posteriorVp is not None:
         print("[WARN] Vp ensemble size does not match Vs; skipping the Vp/Vs curve")
 
@@ -741,6 +854,23 @@ def main():
     # -------------------------------------------------------------------------
     # Read model space
     # -------------------------------------------------------------------------
+    # Depth range of the two model panels, taken from the starting model rather
+    # than hard-coded: full panel 0..total, zoom panel 0..ZOOM_FRACTION*total.
+    model_depth = read_model_total_thickness(paths["modfile"])
+    if model_depth is None:
+        vs_ylim_full, vs_ylim_shallow = VS_YLIM_FULL, VS_YLIM_SHALLOW
+        print("[WARN] using the fallback depth limits {} / {}".format(
+            VS_YLIM_FULL, VS_YLIM_SHALLOW))
+    else:
+        vs_ylim_full = (0.0, model_depth)
+        vs_ylim_shallow = (0.0, ZOOM_FRACTION * model_depth)
+        print("Model depth {:g} km -> full panel 0-{:g} km, zoom panel 0-{:g} km".format(
+            model_depth, vs_ylim_full[1], vs_ylim_shallow[1]))
+    ticks_full = depth_ticks(vs_ylim_full[1])
+    ticks_zoom = depth_ticks(vs_ylim_shallow[1])
+    # Widened below if the Vp curve needs more room than VS_XLIM allows.
+    vs_xlim = VS_XLIM
+
     mspacemindepth, mspacemin, mspacemaxdepth, mspacemax = read_model_space(
         paths["modelspacemaxfile"], paths["modelspaceminfile"], plot_type
     )
@@ -918,11 +1048,25 @@ def main():
     # ---- Vp posterior cloud + ensemble Vp/Vs profile (p_flag=5 runs only) ----
     if posteriorVp is not None:
         for jj in range(len(posteriorVp) - 1):
-            ax1.plot(posteriorVp[jj], posteriordepth[jj], c="lightblue", alpha=0.10, lw=2)
+            ax1.plot(posteriorVp[jj], posteriordepth[jj], c=POSTERIOR_VP_COLOR, alpha=cloud_alpha(POSTERIOR_VP_ALPHA, len(posteriorVp)), lw=2)
+    if SHOW_VPVS_POSTERIOR and vpvs_curves is not None:
+        for jj in range(len(vpvs_curves)):
+            ax1.plot(vpvs_curves[jj], vpvs_curve_depth,
+                     c=POSTERIOR_VPVS_COLOR, alpha=cloud_alpha(POSTERIOR_VPVS_ALPHA, len(vpvs_curves)), lw=2)
+    if vp_mean is not None:
+        # mantle Vp reaches ~7.5 km/s, past the default 7.0 x-limit
+        vs_xlim = (VS_XLIM[0], max(VS_XLIM[1],
+                                   float(np.nanmax(vp_mean + vp_std)) * 1.05))
+        _d, _v, _e, _md, _mv, _me = decimate_profile(vp_depth, vp_mean, vp_std, vs_ylim_full[1])
+        ax1.plot(_v, _d, "c--", lw=2, zorder=7)   # x = velocity, y = depth
+        ax1.plot(_mv, _md, "co", mfc="w", ms=8, mec="k", label="Final Vp", zorder=7)
+        ax1.errorbar(_mv, _md, xerr=_me, fmt="none",
+                     ecolor="c", elinewidth=2, capsize=4, alpha=1.0, zorder=7)
     if vpvs_mean is not None:
-        ax1.plot(vpvs_mean, vpvs_depth, "k^-", lw=2.0, ms=6,
-                 label="Final Vp/Vs", zorder=8)
-        ax1.errorbar(vpvs_mean, vpvs_depth, xerr=vpvs_std, fmt="none",
+        _d, _v, _e, _md, _mv, _me = decimate_profile(vpvs_depth, vpvs_mean, vpvs_std, vs_ylim_full[1])
+        ax1.plot(_v, _d, "k-", lw=2.0, zorder=8)
+        ax1.plot(_mv, _md, "k^", ms=6, label="Final Vp/Vs", zorder=8)
+        ax1.errorbar(_mv, _md, xerr=_me, fmt="none",
                      ecolor="k", elinewidth=1.5, capsize=3, alpha=1.0, zorder=8)
 
     # Model spacing plot 
@@ -971,16 +1115,16 @@ def main():
     # below 5 km the tick spacing is 2.5 km (was 5 km): the deep part is kept
     # on purpose to show how the data-unconstrained depths spread, so it needs
     # readable depth ticks.
-    ticks = np.r_[np.arange(0, 5.0, 1.0), np.arange(5, 51, 2.5)]
-    ax1.set_yticks(ticks)
+    if ticks_full is not None:
+        ax1.set_yticks(ticks_full)
     ax1.set_xlabel("Vs, Vp (km/s)  /  Vp/Vs" if posteriorVp is not None else "Vs (km/s)",
                    fontdict=FONT_LABEL)
     ax1.set_ylabel("Depth (km)", fontdict=FONT_LABEL)
     ax1.xaxis.set_major_formatter(FormatStrFormatter("%.1f"))
     ax1.tick_params(labeltop=False, labelsize=20)
-    ax1.set_ylim(VS_YLIM_FULL)
+    ax1.set_ylim(vs_ylim_full)
     ax1.set_ylim(ax1.get_ylim()[::-1])
-    ax1.set_xlim(VS_XLIM)
+    ax1.set_xlim(vs_xlim)
     ax1.grid(color="k", axis="both", linestyle="-", linewidth=2, alpha=0.1, zorder=2)
 
     title = "Vs of station: [{}] - MinimumMisfit: {} - #posteriorModels:{}".format(
@@ -1022,26 +1166,38 @@ def main():
     # ---- Vp posterior cloud + ensemble Vp/Vs profile (p_flag=5 runs only) ----
     if posteriorVp is not None:
         for jj in range(len(posteriorVp) - 1):
-            ax4.plot(posteriorVp[jj], posteriordepth[jj], c="lightblue", alpha=0.10, lw=2)
+            ax4.plot(posteriorVp[jj], posteriordepth[jj], c=POSTERIOR_VP_COLOR, alpha=cloud_alpha(POSTERIOR_VP_ALPHA, len(posteriorVp)), lw=2)
+    if SHOW_VPVS_POSTERIOR and vpvs_curves is not None:
+        for jj in range(len(vpvs_curves)):
+            ax4.plot(vpvs_curves[jj], vpvs_curve_depth,
+                     c=POSTERIOR_VPVS_COLOR, alpha=cloud_alpha(POSTERIOR_VPVS_ALPHA, len(vpvs_curves)), lw=2)
+    if vp_mean is not None:
+        _d, _v, _e, _md, _mv, _me = decimate_profile(vp_depth, vp_mean, vp_std, vs_ylim_shallow[1])
+        ax4.plot(_v, _d, "c--", lw=2, zorder=7)   # x = velocity, y = depth
+        ax4.plot(_mv, _md, "co", mfc="w", ms=8, mec="k", label="Final Vp", zorder=7)
+        ax4.errorbar(_mv, _md, xerr=_me, fmt="none",
+                     ecolor="c", elinewidth=2, capsize=4, alpha=1.0, zorder=7)
     if vpvs_mean is not None:
-        ax4.plot(vpvs_mean, vpvs_depth, "k^-", lw=2.0, ms=6,
-                 label="Final Vp/Vs", zorder=8)
-        ax4.errorbar(vpvs_mean, vpvs_depth, xerr=vpvs_std, fmt="none",
+        _d, _v, _e, _md, _mv, _me = decimate_profile(vpvs_depth, vpvs_mean, vpvs_std, vs_ylim_shallow[1])
+        ax4.plot(_v, _d, "k-", lw=2.0, zorder=8)
+        ax4.plot(_mv, _md, "k^", ms=6, label="Final Vp/Vs", zorder=8)
+        ax4.errorbar(_mv, _md, xerr=_me, fmt="none",
                      ecolor="k", elinewidth=1.5, capsize=3, alpha=1.0, zorder=8)
 
     ax4.plot(inputmodel["vs"], inputmodel["dep"], "r^-", lw=2.5, ms=10, label="Start Vs")
 
     # ax4.plot(inputmodel0["vs"], inputmodel0["dep"], "ko-", lw=2.5, ms=10, alpha=0.5, label="Input model")
 
-    ax4.set_yticks(np.arange(0, int(round(np.max(rmdepthucvm), 0)), 5.0))
-    ax4.set_xlabel("Vs (km/s)", fontdict=FONT_LABEL)
+    ax4.set_xlabel("Vs, Vp (km/s)  /  Vp/Vs" if posteriorVp is not None else "Vs (km/s)",
+                   fontdict=FONT_LABEL)
     ax4.set_ylabel("Depth (km)", fontdict=FONT_LABEL)
     ax4.xaxis.set_major_formatter(FormatStrFormatter("%.1f"))
     ax4.tick_params(labeltop=True, labelsize=20)
-    ax4.set_ylim(VS_YLIM_SHALLOW)
-    ax4.set_yticks(np.arange(0, 2.0, 0.25))
+    ax4.set_ylim(vs_ylim_shallow)
+    if ticks_zoom is not None:
+        ax4.set_yticks(ticks_zoom)
     ax4.set_ylim(ax4.get_ylim()[::-1])
-    ax4.set_xlim(VS_XLIM)
+    ax4.set_xlim(vs_xlim)
     ax4.grid(color="k", axis="both", linestyle="-", linewidth=2, alpha=0.1, zorder=2)
 
     # ---- Phase velocity
