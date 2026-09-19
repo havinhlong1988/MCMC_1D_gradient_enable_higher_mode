@@ -1,5 +1,0 @@
-/home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/data/01390_data/in.connector
-1 0 0 0
-Phase file exist!
-Use CALmodel/goodmodel function to constrain model behavior
-control file /home/vinh-longha/Research/MCMC_CHT/20260801_MCMC_CHT_monotonic_vpvs_H14/CHT/data/01390_data/01390.control - ok!
